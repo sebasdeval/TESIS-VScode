@@ -17,7 +17,7 @@ file per audio recording.
 1. Transform bounding box annotation data to fixed size samples
 
 """
-
+#%%
 import numpy as np  
 import pandas as pd
 from maad import sound, util
@@ -29,21 +29,22 @@ from os import walk
 # Set main variables
 target_fs = 24000  # target fs of project
 wl = 5  # Window length for formated rois
-path_annot = './annotations2/'  # location of bbox annotations
-path_audio = './audio2/'  # location of raw audio
-path_save = './train_dataset/'  # location to save new samples
+path_annot = '/workspaces/TESIS-VScode/ANNOTATIONS_INTC41/INCT41'  # location of bbox annotations
+path_audio = '/workspaces/TESIS-VScode/AUDIO_INTC41/INCT41/'  # location of raw audio
+path_save = '/workspaces/TESIS-VScode/SCRIPTS/TDS'  # location to save new samples
 
 
 
 
-nombre = next(walk('./annotations2/'), (None, None, []))[2]  # [] if no file
-anotate = next(walk('./annotations2/'), (None, None, []))[2]
+nombre = next(walk('/workspaces/TESIS-VScode/ANNOTATIONS_INTC41/INCT41'), (None, None, []))[2]  # [] if no file
+anotate = next(walk('/workspaces/TESIS-VScode/ANNOTATIONS_INTC41/INCT41'), (None, None, []))[2]
 df_mlabel= []
-for i in range (len(nombre)): 
-    print(nombre[i])
+df_rois=[]
 
 #nombre = input("Nombre de la grabación que se quiere procesar: ")
 #%% Load multiple annotations from directory
+for i in range (len(nombre)): 
+    print(nombre[i])
     flist = glob.glob(path_annot + nombre[i])
     df = pd.DataFrame()
     for fname in flist:
@@ -53,13 +54,14 @@ for i in range (len(nombre)):
         df = df.append(df_aux)
         df.reset_index(inplace=True, drop=True)
         df.head()
-
-
-#%% Post-process annotations. 
-# Select vocalizations of a single species
-    df_rois = df.loc[(df.label=='BOAPRA_FAR')|(df.label=='BOAFAB_F') |(df.label=='BOAFAB_M')| (df.label=='BOALEP_MED')|(df.label=='PHYCUV_M')|(df.label=='PHUCUV_F')|(df.label=='PHYCUV_F')| (df.label=='DENMIN_MED')| (df.label=='RHIICT_MED')| (df.label=='SCIGRA_FAR'), :]
-
-#%% format rois to a fixed window
+        df_rois = df.loc[(df.label=='BOAALB_M')|(df.label=='BOAALB_F') |(df.label=='BOALUN_F')| (df.label=='BOALUN_M')|(df.label=='PHYCUV_M')|(df.label=='PHUCUV_F'), :]
+        rois_fmt = pd.DataFrame()
+    for idx, roi in df_rois.iterrows():
+        roi_fmt = roi2windowed(wl, roi)
+        rois_fmt = rois_fmt.append(roi_fmt)
+    
+    rois_fmt.reset_index(inplace=True, drop=True)
+    print(rois_fmt)
     rois_fmt = pd.DataFrame()
     for idx, roi in df_rois.iterrows():
         roi_fmt = roi2windowed(wl, roi)
@@ -67,7 +69,36 @@ for i in range (len(nombre)):
     
     rois_fmt.reset_index(inplace=True, drop=True)
     print(rois_fmt)
+    df_filt=(df[df["max_t"] <= 5])
+    
+    for x in range(0, 60,5):
+        print (x)
+        df_windowed = df[(df['min_t'] >= x) & (df['max_t'] <= x+5)]
+        names = df_windowed['label']
+        #fmin = df_windowed ["min_f"]
+        #fmax = df_windowed ["max_f"]
+        df_mlabel.append(df_windowed)
+        print ('-------')
+        print (names)
+        print(df_windowed)
+    #Cada posición de la lista corresponde a una ventana de datos segmentados de acuerdo a wl comprendido en dataframes
+    #Each position on mlabel list correspond to a data segmented window comprehended in dataframes 
+    print(df_mlabel) 
 
+#%% Post-process annotations. 
+# Select vocalizations of a single species
+
+
+#v= pd.DataFrame()
+#for i in range (len(df_mlabel)):
+#    v = v.append(df_mlabel[i])
+#v['label'].value_counts()
+#print(df_mlabel[i]) 
+
+
+
+#%% format rois to a fixed window
+   
 #%% Load audio, resample, trim, normalize and write to disk
 # for idx_row, roi_fmt in rois_fmt.iterrows():
 #     print(idx_row+1, '/', len(rois_fmt))
@@ -84,29 +115,12 @@ for i in range (len(nombre)):
 #rois_fmt['fname_trim'] = rois_fmt.label + '_' + rois_fmt.index.astype(str).str.zfill(3)
 #rois_fmt.to_csv(path_save+'rois_details.csv', index=False)
 #%% MultiLabel Window Cutting
-    df_filt=(df[df["max_t"] <= 5])
     
-    for x in range(0, 60,5):
-        print (x)
-        df_windowed = df[(df['min_t'] >= x) & (df['max_t'] <= x+5)]
-        names = df_windowed['label']
-        #fmin = df_windowed ["min_f"]
-        #fmax = df_windowed ["max_f"]
-        df_mlabel.append(df_windowed)
-        print ('-------')
-        print (names)
        # print(fmin)
         #print(fmax)
-        print(df_windowed)
-    #Cada posición de la lista corresponde a una ventana de datos segmentados de acuerdo a wl comprendido en dataframes
-    #Each position on mlabel list correspond to a data segmented window comprehended in dataframes 
-    print(df_mlabel)    
+   
 #%% Label repetition in df counting
 #conten=pd.DataFrame()
-v= pd.DataFrame()
-for i in range (len(df_mlabel)):
-    v = v.append(df_mlabel[i])
-v['label'].value_counts()
-    #print(df_mlabel[i])
+
 #%%
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
