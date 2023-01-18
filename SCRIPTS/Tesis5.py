@@ -103,5 +103,5 @@ for i in range (len(nombre)):
     print(df_mlabel)    
 #%% Label repetition in df counting
 for i in range (len(df_mlabel)):
-    v=pd.append(df_mlabel[i])
+    v=pd.concat(df_mlabel[i])
 v['label'].value_counts()
