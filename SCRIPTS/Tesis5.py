@@ -121,10 +121,11 @@ import pandas as pd
 from pydub import AudioSegment
 
 # Read the dataframe
-df = pd.read_csv('../SCRIPTS/TDS/rois_details.csv')
-
+df_csv = pd.read_csv('../SCRIPTS/TDS/rois_details.csv')
+df_csv['min_t'] = df_csv['min_t'].mul(1000)
+df_csv['max_t'] = df_csv['max_t'].mul(1000)
 # Iterate through the dataframe
-for index, row in df.iterrows():
+for index, row in df_csv.iterrows():
     # Get the path of the audio file
     audio_path = "../AUDIO_INTC41/INCT41/"
     # Get the start and end time for trimming
@@ -138,7 +139,7 @@ for index, row in df.iterrows():
     # Trim the audio
     audio_trimmed = audio[start_time:end_time]
     # Save the trimmed audio
-    audio_trimmed.export(path_save + name, format="wav")
+    audio_trimmed.export(path_save + name + ".wav", format="wav")
 
 print("All audio files have been trimmed successfully!")
 # %%
