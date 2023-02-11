@@ -1,3 +1,75 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Sun Aug  7 14:50:41 2022
+
+@author: Michael || Sebastian
+"""
+
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Build dataset
+
+Audio recordings come into monophonic recordings. Manual annotations come into 
+time-frequency segmentation performed using audacity or raven. There is one annotation
+file per audio recording.
+
+This code is a Python script for processing audio files and generating spectrograms and annotations.
+The script starts by importing necessary libraries including Numpy, Pandas, Librosa, Matplotlib, etc.
+It then sets some global variables such as the target frequency, window length, paths to audio and annotations, etc.
+The code includes several functions: filter_window filters a dataframe based on start, end, and step time values and returns a list
+of dataframes and a dictionary of dataframes grouped by the file name. filter_label filters dataframe rows based on specific labels. 
+save_fname_lists saves data in the fname_lists dictionary to CSV files.
+
+"""
+#%%
+# Loading libraries
+import numpy as np  
+import pandas as pd
+from maad import sound, util
+import glob
+from os import walk
+import sphinx
+import librosa
+import librosa.display
+import matplotlib.pyplot as plt
+import os
+import wave
+
+print ("Done loading libraries")
+
+#%%
+# Set main variables
+target_fs = 24000  # target fs of project
+wl = 5  # Window length for formated rois
+path_annot = '../ANNOTATIONS_INTC41/INCT41/'  # location of bbox annotations
+path_audio = '../AUDIO_INTC41/INCT41/'  # location of raw audio
+path_save = '../train_dataset/'  # location to save new samples
+nombre = next(walk(r"C:\Users\sebas\Documents\GitHub\TESIS-VScode\ANNOTATIONS_INTC41\INCT41"), (None, None, []))[2]  # [] if no file
+df = pd.DataFrame()
+
+# _______TRIMMING AUDIO SETTINGS _______
+# Set the length of each audio chunk in seconds
+chunk_length = 5
+# Specify the source and destination directories for the audio files
+src_dir = '../AUDIO_INTC41/INCT41/'
+dst_dir = '../SCRIPTS/TDL/PHYCUV/AUDIO_TRIM/'
+
+#________PATHS FOR GETTING SPECTROGRAM FILES________
+input_folder = '../SCRIPTS/TDL/PHYCUV/AU_PR8/'
+output_folder = '../SCRIPTS/TDL/PHYCUV/AUSPEC/'
+
+
+#_______SETTING UP THE SPECTROGRAM FOLDER TO GENERATE THE DATAFRAME WITH THE INFORMATION_______
+spectrogram_folder = '../SCRIPTS/TDL/PHYCUV/AUSPEC/'
+
+#_______SETTING UP THE LABEL DATAFRAME PATH TO GENERATE THE DATAFRAME WITH THE INFORMATION_______
+input_folder_LBL = '../SCRIPTS/TDL/PHYCUV/CSV/'
+
+#%%
+#________________________BEGINNING OF FUNCTIONS_______________
+
+
 def filter_window(df, start, end, step):
     """
     Filter a dataframe to get windows of time periods.
@@ -5,13 +77,15 @@ def filter_window(df, start, end, step):
     This function filters a dataframe based on start, end and step time values, creating a new dataframe for each
     time window. The resulting dataframes are grouped by the file name and stored in a dictionary.
 
-    Args:
+    Parameters
+    ----------
     df (pandas.DataFrame): Dataframe to be filtered.
     start (int): Start time value in seconds.
     end (int): End time value in seconds.
     step (int): Step value in seconds to create new time windows.
 
-    Returns:
+    Returns
+    -------
     tuple: A tuple containing:
         df_mlabel (list): A list of dataframes containing only rows with time between start and end values.
         fname_lists (dict): A dictionary of dataframes grouped by the file name.
@@ -52,12 +126,14 @@ def save_fname_lists(fname_lists, save_path):
     """
         This function saves the data in the `fname_lists` dictionary to csv files. 
 
-    Parameters:
+    Parameters
+    ----------
     fname_lists (dict): A dictionary where the key is a string representing the name of an audio file,
                         and the value is a list of dataframes.
     save_path (str): The path to the directory where the csv files should be saved.
 
-    Returns:
+    Returns
+    -------
     None
 
     Example:
@@ -220,20 +296,17 @@ def generate_spectrograms_from_folder(input_folder, output_folder):
                 
 def get_spectrogram_paths(directory):
     """
-    Get the paths of all PNG files in a directory and its subdirectories.
+    Return a list of spectrogram file paths found in the directory.
 
-    :param directory: A string that represents the path to the directory.
-    :type directory: str
-    :return: A list of strings, where each string is the path to a PNG file.
-    :rtype: list of str
+    Parameters
+    ----------
+    directory : str
+        The directory to search for spectrogram files.
 
-    Example usage::
-    .. code-block:: python
-
-        spectrogram_paths = get_spectrogram_paths('/path/to/directory')
-        for spectrogram_path in spectrogram_paths:
-            # do something with the spectrogram_path
-            print(spectrogram_path)
+    Returns
+    -------
+    list
+        List of spectrogram file paths.
     """
     spectrogram_paths = []
     for root, dirs, files in os.walk(directory):
@@ -338,57 +411,59 @@ def save_merged_df(merged_df, save_path):
     """
     file_path = os.path.join(save_path, "label_df.csv")
     merged_df.to_csv(file_path, index=False)
-    
-    """
-Utility functions for deep learning sound detection module
-"""
+                
+                  
+print("_____________DONE LOADING THE FUNCTIONS_____________")
+#__________________________END OF FUNCTIONS_____________________________________
+#%%
+#Load multiple annotations from a directory and perform multi-label window cutting.
+df_mlabel,fname_lists = load_annotations(path_annot, nombre)
+#Saving fname_lists for tracking purposes      
+save_fname_lists(fname_lists, '../SCRIPTS/TDL/PHYCUV/CSV/')       
+print("Done!") 
 
-import json
-import logging
-import os
-import shutil
-import torch
-import numpy as np
-import pandas as pd
 
-#%% Functions for build_dataset.py
+#%% Merging mlabel list of dataframes to a single dataframe to count numbers of labels  on audios
+v = pd.DataFrame()
+v = pd.concat(df_mlabel,ignore_index=True)
+print("Done counting labels")
+# Print count of species founded    
+print(v['label'].value_counts())
 
-def roi2windowed2(wl, roi):
-    """
-    Split a single region of interest (roi) into multiple regions of fixed size according
-    to a window length. If window length (wl) is longer than the roi, the result is a single
-    roi of length wl and centered in the middle of the roi. If the window length is 
-    shorter than the, the roi is splitted into multiple regions. Regions must have at
-    least 50% of overlap with the new window length. There is no overlap between windows.
-    
-    Parameters
-    ----------
-    wl : float
-        Window length of the resulting regions of interest
-    roi : pandas.core.frame.DataFrame
-        Regions of interest with at least five columns, min_t, max_t, min_f, max_f, label.
 
-    Returns
-    -------
-    roi_fmt : pandas.core.frame.DataFrame
-        Formated regions of interest with fixed size.
+#%%
+#Filtrar la especie y guardar en df_rois
+# df_rois = df[df.apply(filter_label, axis=1)].reset_index()
 
-    """
-    roi_len = (roi.max_t - roi.min_t)
-    
-    if roi_len < wl:
-        # region shorter than window length
-        roi_median = roi.min_t + roi_len/2
-        roi.loc['min_t'] = roi_median - wl/2
-        roi.loc['max_t'] = roi_median + wl/2
-        roi_fmt = roi.to_frame().T
-    
-    else:
-        # region larger than window length
-        # compute arrays. If more than 50% overlap remains, add a window
-        roi_fmt = pd.DataFrame({'min_t': np.arange(roi.min_t, roi.max_t-wl+(wl/2), wl),
-                                 'max_t': np.arange(roi.min_t+wl, roi.max_t+(wl/2), wl),
-                                 #'min_f': roi.min_f,
-                                 #'max_f': roi.max_f,
-                                 'label': roi.label})
-    return roi_fmt
+
+#%% Trimming audio files from src directory
+trim_audio_files(src_dir, dst_dir, chunk_length)
+
+
+#%% Generating spectrogram files and saving on a local file
+#Important, no more than 100 audios per batch, this depends on the size of the spectrogram required
+generate_spectrograms_from_folder(input_folder, output_folder)
+
+
+#%%
+#Creating spectrogram dataframe from the spectrogram files folder
+spectrogram_df = create_spectrogram_dataframe(spectrogram_folder)
+
+
+#%%
+#CREATE THE LABELS DATAFRAME IN WHICH IS A SUMMARY OF SPECIES BY NAME OF FILE
+label_df = create_label_df(input_folder_LBL)
+
+
+#%%
+# Merge the two dataframes, 'label_df' & 'spectrogram_df' by the 'NAME' column to get the dataframe for the ML model
+merged_df = spectrogram_df.merge(label_df, on='NAME', how='right')
+
+
+#%%
+#Saving DataFrames in the same path
+save_path = "../SCRIPTS/TDL/PHYCUV/DATASET/"
+save_merged_df(label_df, save_path)
+save_merged_df(spectrogram_df, save_path)
+save_merged_df(merged_df, save_path)
+

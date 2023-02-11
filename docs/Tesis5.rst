@@ -1,7 +1,7 @@
-utils module
-============
+Tesis5 module
+=============
 
-.. automodule:: utils
+.. automodule:: Tesis5
    :members:
    :undoc-members:
    :show-inheritance:

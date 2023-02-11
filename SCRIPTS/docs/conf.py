@@ -18,11 +18,11 @@ sys.path.insert(0, os.path.abspath('..'))
 # -- Project information -----------------------------------------------------
 
 project = 'Tesis'
-copyright = '2023, Michael & Sebas'
-author = 'Michael & Sebas'
+copyright = '2023, Michael Hernandez & Sebastian De Valdenebro'
+author = 'Michael Hernandez & Sebastian De Valdenebro'
 
 # The full version, including alpha/beta/rc tags
-release = '2023'
+release = '2023-2'
 
 
 # -- General configuration ---------------------------------------------------
@@ -30,11 +30,11 @@ release = '2023'
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
-extensions = ['sphinx.ext.autodoc', 'sphinx.ext.doctest',
-              'sphinx.ext.intersphinx', 'sphinx.ext.todo',
-              'sphinx.ext.ifconfig', 'sphinx.ext.viewcode',
-              'sphinx.ext.inheritance_diagram',
-              'sphinx.ext.autosummary'
+extensions = [    "sphinx.ext.autosummary",
+    "sphinx.ext.autodoc",
+    "sphinx.ext.coverage",
+    "sphinx.ext.doctest",
+    "sphinx.ext.napoleon",
 ]
 
 # Add any paths that contain templates here, relative to this directory.

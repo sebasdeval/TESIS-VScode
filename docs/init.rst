@@ -1,7 +1,7 @@
-utils module
-============
+init module
+===========
 
-.. automodule:: utils
+.. automodule:: init
    :members:
    :undoc-members:
    :show-inheritance:
