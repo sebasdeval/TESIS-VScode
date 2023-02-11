@@ -1,0 +1,323 @@
+
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>utils &#8212; Tesis 2023 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/alabaster.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for utils</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Utility functions for deep learning sound detection module</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">shutil</span>
+<span class="kn">import</span> <span class="nn">torch</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="c1">#%% Objects for train.py evaluation.py and inference.py</span>
+<div class="viewcode-block" id="Params"><a class="viewcode-back" href="../utils.html#utils.Params">[docs]</a><span class="k">class</span> <span class="nc">Params</span><span class="p">():</span>
+    <span class="sd">&quot;&quot;&quot;Class that loads hyperparameters from a json file.</span>
+
+<span class="sd">    Example:</span>
+<span class="sd">    ```</span>
+<span class="sd">    params = Params(json_path)</span>
+<span class="sd">    print(params.learning_rate)</span>
+<span class="sd">    params.learning_rate = 0.5  # change the value of learning_rate in params</span>
+<span class="sd">    ```</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">json_path</span><span class="p">):</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">json_path</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">params</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="vm">__dict__</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">params</span><span class="p">)</span>
+
+<div class="viewcode-block" id="Params.save"><a class="viewcode-back" href="../utils.html#utils.Params.save">[docs]</a>    <span class="k">def</span> <span class="nf">save</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">json_path</span><span class="p">):</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">json_path</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">json</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="vm">__dict__</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="n">indent</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span></div>
+            
+<div class="viewcode-block" id="Params.update"><a class="viewcode-back" href="../utils.html#utils.Params.update">[docs]</a>    <span class="k">def</span> <span class="nf">update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">json_path</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Loads parameters from json file&quot;&quot;&quot;</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">json_path</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">params</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="vm">__dict__</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">params</span><span class="p">)</span></div>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">dict</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Gives dict-like access to Params instance by `params.dict[&#39;learning_rate&#39;]&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__dict__</span></div>
+
+
+<div class="viewcode-block" id="RunningAverage"><a class="viewcode-back" href="../utils.html#utils.RunningAverage">[docs]</a><span class="k">class</span> <span class="nc">RunningAverage</span><span class="p">():</span>
+    <span class="sd">&quot;&quot;&quot;A simple class that maintains the running average of a quantity</span>
+<span class="sd">    </span>
+<span class="sd">    Example:</span>
+<span class="sd">    ```</span>
+<span class="sd">    loss_avg = RunningAverage()</span>
+<span class="sd">    loss_avg.update(2)</span>
+<span class="sd">    loss_avg.update(4)</span>
+<span class="sd">    loss_avg() = 3</span>
+<span class="sd">    ```</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">steps</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">total</span> <span class="o">=</span> <span class="mi">0</span>
+    
+<div class="viewcode-block" id="RunningAverage.update"><a class="viewcode-back" href="../utils.html#utils.RunningAverage.update">[docs]</a>    <span class="k">def</span> <span class="nf">update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">val</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">total</span> <span class="o">+=</span> <span class="n">val</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">steps</span> <span class="o">+=</span> <span class="mi">1</span></div>
+    
+    <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">total</span><span class="o">/</span><span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">steps</span><span class="p">)</span></div>
+        
+<span class="c1">#%% Functions for train.py evaluation.py and inference.py</span>
+
+<div class="viewcode-block" id="set_logger"><a class="viewcode-back" href="../utils.html#utils.set_logger">[docs]</a><span class="k">def</span> <span class="nf">set_logger</span><span class="p">(</span><span class="n">log_path</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Set the logger to log info in terminal and file `log_path`.</span>
+
+<span class="sd">    In general, it is useful to have a logger so that every output to the terminal is saved</span>
+<span class="sd">    in a permanent file. Here we save it to `model_dir/train.log`.</span>
+
+<span class="sd">    Example:</span>
+<span class="sd">    ```</span>
+<span class="sd">    logging.info(&quot;Starting training...&quot;)</span>
+<span class="sd">    ```</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        log_path: (string) where to log</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">()</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">INFO</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">logger</span><span class="o">.</span><span class="n">handlers</span><span class="p">:</span>
+        <span class="c1"># Logging to a file</span>
+        <span class="n">file_handler</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">FileHandler</span><span class="p">(</span><span class="n">log_path</span><span class="p">)</span>
+        <span class="n">file_handler</span><span class="o">.</span><span class="n">setFormatter</span><span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">Formatter</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%(asctime)s</span><span class="s1">:</span><span class="si">%(levelname)s</span><span class="s1">: </span><span class="si">%(message)s</span><span class="s1">&#39;</span><span class="p">))</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">addHandler</span><span class="p">(</span><span class="n">file_handler</span><span class="p">)</span>
+
+        <span class="c1"># Logging to console</span>
+        <span class="n">stream_handler</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">StreamHandler</span><span class="p">()</span>
+        <span class="n">stream_handler</span><span class="o">.</span><span class="n">setFormatter</span><span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">Formatter</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%(message)s</span><span class="s1">&#39;</span><span class="p">))</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">addHandler</span><span class="p">(</span><span class="n">stream_handler</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="save_dict_to_json"><a class="viewcode-back" href="../utils.html#utils.save_dict_to_json">[docs]</a><span class="k">def</span> <span class="nf">save_dict_to_json</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="n">json_path</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Saves dict of floats in json file</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        d: (dict) of float-castable values (np.float, int, float, etc.)</span>
+<span class="sd">        json_path: (string) path to json file</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">json_path</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="c1"># We need to convert the values to float for json (it doesn&#39;t accept np.array, np.float, )</span>
+        <span class="n">d</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">d</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+        <span class="n">json</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="n">indent</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="save_checkpoint"><a class="viewcode-back" href="../utils.html#utils.save_checkpoint">[docs]</a><span class="k">def</span> <span class="nf">save_checkpoint</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">is_best</span><span class="p">,</span> <span class="n">checkpoint</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Saves model and training parameters at checkpoint + &#39;last.pth.tar&#39;. If is_best==True, also saves</span>
+<span class="sd">    checkpoint + &#39;best.pth.tar&#39;</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        state: (dict) contains model&#39;s state_dict, may contain other keys such as epoch, optimizer state_dict</span>
+<span class="sd">        is_best: (bool) True if it is the best model seen till now</span>
+<span class="sd">        checkpoint: (string) folder where parameters are to be saved</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">filepath</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">checkpoint</span><span class="p">,</span> <span class="s1">&#39;last.pth.tar&#39;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">checkpoint</span><span class="p">):</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Checkpoint Directory does not exist! Making directory </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">checkpoint</span><span class="p">))</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">checkpoint</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Checkpoint Directory exists! &quot;</span><span class="p">)</span>
+    <span class="n">torch</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">filepath</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">is_best</span><span class="p">:</span>
+        <span class="n">shutil</span><span class="o">.</span><span class="n">copyfile</span><span class="p">(</span><span class="n">filepath</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">checkpoint</span><span class="p">,</span> <span class="s1">&#39;best.pth.tar&#39;</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="load_checkpoint"><a class="viewcode-back" href="../utils.html#utils.load_checkpoint">[docs]</a><span class="k">def</span> <span class="nf">load_checkpoint</span><span class="p">(</span><span class="n">checkpoint</span><span class="p">,</span> <span class="n">model</span><span class="p">,</span> <span class="n">optimizer</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Loads model parameters (state_dict) from file_path. If optimizer is provided, loads state_dict of</span>
+<span class="sd">    optimizer assuming it is present in checkpoint.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        checkpoint: (string) filename which needs to be loaded</span>
+<span class="sd">        model: (torch.nn.Module) model for which the parameters are loaded</span>
+<span class="sd">        optimizer: (torch.optim) optional: resume optimizer from checkpoint</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">checkpoint</span><span class="p">):</span>
+        <span class="k">raise</span><span class="p">(</span><span class="s2">&quot;File doesn&#39;t exist </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">checkpoint</span><span class="p">))</span>
+    <span class="n">checkpoint</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">checkpoint</span><span class="p">)</span>
+    <span class="n">model</span><span class="o">.</span><span class="n">load_state_dict</span><span class="p">(</span><span class="n">checkpoint</span><span class="p">[</span><span class="s1">&#39;state_dict&#39;</span><span class="p">])</span>
+
+    <span class="k">if</span> <span class="n">optimizer</span><span class="p">:</span>
+        <span class="n">optimizer</span><span class="o">.</span><span class="n">load_state_dict</span><span class="p">(</span><span class="n">checkpoint</span><span class="p">[</span><span class="s1">&#39;optim_dict&#39;</span><span class="p">])</span>
+
+    <span class="k">return</span> <span class="n">checkpoint</span></div>
+
+<span class="c1">#%% Functions for build_dataset.py</span>
+
+<div class="viewcode-block" id="roi2windowed"><a class="viewcode-back" href="../utils.html#utils.roi2windowed">[docs]</a><span class="k">def</span> <span class="nf">roi2windowed</span><span class="p">(</span><span class="n">wl</span><span class="p">,</span> <span class="n">roi</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Split a single region of interest (roi) into multiple regions of fixed size according</span>
+<span class="sd">    to a window length. If window length (wl) is longer than the roi, the result is a single</span>
+<span class="sd">    roi of length wl and centered in the middle of the roi. If the window length is </span>
+<span class="sd">    shorter than the, the roi is splitted into multiple regions. Regions must have at</span>
+<span class="sd">    least 50% of overlap with the new window length. There is no overlap between windows.</span>
+<span class="sd">    </span>
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    wl : float</span>
+<span class="sd">        Window length of the resulting regions of interest</span>
+<span class="sd">    roi : pandas.core.frame.DataFrame</span>
+<span class="sd">        Regions of interest with at least five columns, min_t, max_t, min_f, max_f, label.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    roi_fmt : pandas.core.frame.DataFrame</span>
+<span class="sd">        Formated regions of interest with fixed size.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">roi_len</span> <span class="o">=</span> <span class="p">(</span><span class="n">roi</span><span class="o">.</span><span class="n">max_t</span> <span class="o">-</span> <span class="n">roi</span><span class="o">.</span><span class="n">min_t</span><span class="p">)</span>
+    
+    <span class="k">if</span> <span class="n">roi_len</span> <span class="o">&lt;</span> <span class="n">wl</span><span class="p">:</span>
+        <span class="c1"># region shorter than window length</span>
+        <span class="n">roi_median</span> <span class="o">=</span> <span class="n">roi</span><span class="o">.</span><span class="n">min_t</span> <span class="o">+</span> <span class="n">roi_len</span><span class="o">/</span><span class="mi">2</span>
+        <span class="n">roi</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="s1">&#39;min_t&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">roi_median</span> <span class="o">-</span> <span class="n">wl</span><span class="o">/</span><span class="mi">2</span>
+        <span class="n">roi</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="s1">&#39;max_t&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">roi_median</span> <span class="o">+</span> <span class="n">wl</span><span class="o">/</span><span class="mi">2</span>
+        <span class="n">roi_fmt</span> <span class="o">=</span> <span class="n">roi</span><span class="o">.</span><span class="n">to_frame</span><span class="p">()</span><span class="o">.</span><span class="n">T</span>
+    
+    <span class="k">else</span><span class="p">:</span>
+        <span class="c1"># region larger than window length</span>
+        <span class="c1"># compute arrays. If more than 50% overlap remains, add a window</span>
+        <span class="n">roi_fmt</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">({</span><span class="s1">&#39;min_t&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">roi</span><span class="o">.</span><span class="n">min_t</span><span class="p">,</span> <span class="n">roi</span><span class="o">.</span><span class="n">max_t</span><span class="o">-</span><span class="n">wl</span><span class="o">+</span><span class="p">(</span><span class="n">wl</span><span class="o">/</span><span class="mi">2</span><span class="p">),</span> <span class="n">wl</span><span class="p">),</span>
+                                 <span class="s1">&#39;max_t&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">roi</span><span class="o">.</span><span class="n">min_t</span><span class="o">+</span><span class="n">wl</span><span class="p">,</span> <span class="n">roi</span><span class="o">.</span><span class="n">max_t</span><span class="o">+</span><span class="p">(</span><span class="n">wl</span><span class="o">/</span><span class="mi">2</span><span class="p">),</span> <span class="n">wl</span><span class="p">),</span>
+                                 <span class="c1">#&#39;min_f&#39;: roi.min_f,</span>
+                                 <span class="c1">#&#39;max_f&#39;: roi.max_f,</span>
+                                 <span class="s1">&#39;label&#39;</span><span class="p">:</span> <span class="n">roi</span><span class="o">.</span><span class="n">label</span><span class="p">})</span>
+    <span class="k">return</span> <span class="n">roi_fmt</span></div>
+
+<div class="viewcode-block" id="find_file"><a class="viewcode-back" href="../utils.html#utils.find_file">[docs]</a><span class="k">def</span> <span class="nf">find_file</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">search_path</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    File searching tool. Searches a file with filename recurively in a directory.</span>
+<span class="sd">    </span>
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    filename : str, optional</span>
+<span class="sd">        Filename of the file that you want to search.</span>
+<span class="sd">        </span>
+<span class="sd">    search_path : str, optional</span>
+<span class="sd">        Path to directory. The default is the current directory &#39;./&#39;.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    str</span>
+<span class="sd">        Absolute path to file.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">result</span> <span class="o">=</span> <span class="p">[]</span>
+    
+    <span class="c1"># Wlaking top-down from the root</span>
+    <span class="k">for</span> <span class="n">root</span><span class="p">,</span> <span class="nb">dir</span><span class="p">,</span> <span class="n">files</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">walk</span><span class="p">(</span><span class="n">search_path</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">filename</span> <span class="ow">in</span> <span class="n">files</span><span class="p">:</span>
+            <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">root</span><span class="p">,</span> <span class="n">filename</span><span class="p">))</span>
+
+    <span class="k">return</span> <span class="n">result</span></div>
+
+
+    
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">Tesis</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../modules.html">SCRIPTS</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  <li><a href="index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2023, Michael & Sebas.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 5.0.2</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>
