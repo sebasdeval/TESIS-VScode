@@ -1,186 +1,531 @@
 #%%
-##%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 import numpy as np
-import keras
-from keras.applications.vgg16 import VGG16
-#from keras.preprocessing import image
-import keras.utils as image
-from keras.applications.vgg16 import preprocess_input
-from keras.layers import Dense, Input, Dropout, Flatten
-from keras.models import Model
-from sklearn.model_selection import train_test_split
+import matplotlib.pyplot as plt
 import pandas as pd
-import tensorflow as tf
-from tqdm import tqdm
-from tensorflow.keras.utils import to_categorical
-#from tensorflow.keras.preprocessing import image
-from tensorflow.keras import models, layers
-# Load the csv into a pandas dataframe
-#df = pd.read_csv('../SCRIPTS/TDL/PHYCUV/DATASET/')
+import pathlib
+from maad import sound, util
+import glob
+from os import walk
+import sphinx
+import librosa
+import librosa.display
+import matplotlib.pyplot as plt
+import os
+import wave
 
+
+
+
+import tensorflow as tf
+from tensorflow.keras.layers import Flatten
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.optimizers import Adam
+
+import keras
+#from keras_preprocessing.image import ImageDataGenerator
+from keras.layers import Dense, Activation, Flatten, Dropout, BatchNormalization
+from keras.layers import Conv2D, MaxPooling2D
+from keras import regularizers, optimizers
+from keras.models import Sequential
+from keras.layers import Dense, Dropout, Flatten
+from keras.layers import Conv2D, MaxPooling2D
+# from keras.preprocessing import image
+from keras.layers import BatchNormalization
+import PIL as image_lib
+from keras.layers.core import Dense
+# import keras.utils as image
+from sklearn.model_selection import train_test_split
+from tqdm import tqdm
+
+
+#Dataframe for training 
+import pandas as pd
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras.preprocessing import image
+
+# Preprocessing the dataset
+
+df = pd.read_csv('../SCRIPTS/TDL/PHYCUV/DATASET/merged_df.csv')
+
+#df = pd.read_csv('../SCRIPTS/TDL/PHYCUV/DATASET/merged_df_personal.csv')
 
 #%%
+# Eliminating all rows that contain no species identificated in the spectrograms
+# Find the sum of each row for the last 6 columns
+row_sums = df.iloc[:, -6:].sum(axis=1)
 
-import numpy as np
-import pandas as pd
-# from keras.preprocessing import image
-import keras.utils as image
+# Keep only the rows with a non-zero sum in the last 6 columns
+df_no_ze = df[row_sums != 0]
+df_all_ze = df[row_sums == 0]
 
-def preprocess_images(paths, target_size=(350,350,3)):
+#Function for preprocesing images
+def preprocess_images(paths, target_size=(224,224,3)):
     X = []
     for path in paths:
         img = image.load_img(path, target_size=target_size)
-        img_array = image.img_to_array(img)
+        img_array = tf.keras.preprocessing.image.img_to_array(img)
+        img_array = img_array/255     
         X.append(img_array)
     return np.array(X)
-
-img=resnet50.preprocess_input(X)
-
-# Load dataframe
-# merged_df = pd.read_csv("path/to/merged_df.csv")
-
-# Get image paths from the 'Path' column
-image_paths = merged_df['Path'].values
-
-# Preprocess images
-X = preprocess_images(image_paths)   
-
-#%%
-Y = merged_df.drop(['Path', 'NAME'],axis = 1)
-Y = Y.to_numpy()
-#%%
-#Y_tens = tf.convert_to_tensor(Y, dtype=tf.int64)
-X_tens =  tf.convert_to_tensor(X, dtype=tf.int64)
-#%%
-img=resnet50.preprocess_input(X)
+image_paths = df['Path'].values
 #%%
 
-x_train, x_test, y_train, y_test = train_test_split(img, Y, test_size=0.15)
+# Images path
+image_directory ='../SCRIPTS/TDL/PHYCUV/AUSPEC'
+#Creating auxiliar Dataframe
+df_T = df
+# Preprocess images creating caracteristic array
+X = preprocess_images(image_paths) 
+ # Obtaining labels array in Numpy format
+y = np.array(df.drop(['NAME','Path'],axis=1))
+#Declaring size of mages
+SIZE = 224
+# Dividing Dataset in training and testing with 20 percent of whole dataset for testing
+X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=760, test_size=0.2)
+#X_tensor_train, X_tensor_test, y_tensor_train, y_tensor_test = train_test_split(X_tensor, y_tensor, random_state=20, test_size=0.2)
 
+
+# %%
+#Converting the training and test vectors to tensor format for future models that needed
+y_tensor_train = tf.convert_to_tensor(y_train, dtype=tf.float32)
+y_tensor_test = tf.convert_to_tensor(y_test, dtype=tf.float32)
+X_tensor_train = tf.convert_to_tensor(X_train, dtype=tf.float32)
+X_tensor_test = tf.convert_to_tensor(X_test, dtype=tf.float32)
+
+
+#__________ MODEL 1________________________________________________________________
+#                    VGG16
+#%%
+import numpy as np
+import keras
+from keras.applications.vgg16 import VGG16
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import GridSearchCV
+from sklearn.metrics import classification_report
+from keras.callbacks import ModelCheckpoint, EarlyStopping
+from sklearn.metrics import f1_score
 import tensorflow as tf
-#Considering y variable holds numpy array
-#%%
-x_train =  tf.convert_to_tensor(x_train, dtype=tf.float64)
-x_test = tf.convert_to_tensor(x_test,dtype=tf.float64)
-y_test = tf.convert_to_tensor(y_test,dtype=tf.int64)
-y_train = tf.convert_to_tensor(y_train,dtype=tf.int64)
-#%%
-from tensorflow.keras.applications import resnet50
+from keras.metrics import BinaryAccuracy, AUC
+from tensorflow.keras.models import load_model, save_model
 
-#%%
-model_resnet=resnet50.ResNet50(weights='imagenet')
 
-model_resnet.summary()
-# display the summary to see the properties of the model
-#%%
+# Load the pre-trained VGG16 model and remove the last layer
+base_model = VGG16(weights='imagenet', include_top=False, input_shape=(224, 224, 3))
+x = keras.layers.Flatten()(base_model.output)
+x = keras.layers.Dense(256, activation='relu')(x)
+x = keras.layers.Dropout(0.5)(x)
+x = keras.layers.Dense(128, activation='relu')(x)
+x = keras.layers.Dropout(0.5)(x)
+predictions = keras.layers.Dense(7, activation='sigmoid')(x)
+model = keras.models.Model(inputs=base_model.input, outputs=predictions)
 
-print("Summary of Custom ResNet50 model.\n")
-print("1) We setup input layer and 2) We removed top (last) layer. \n")
+# Set up the optimizer, loss function, and evaluation metric
+optimizer = Adam(learning_rate=1e-4)
+loss = 'binary_crossentropy'
+metric = AUC()
 
-# let us prepare our input_layer to pass our image size. default is (224,224,3). we will change it to (100,100,3)
-input_layer=layers.Input(shape=(350,350,3))
+# Compile the model
+model.compile(optimizer=optimizer, loss=loss, metrics=[BinaryAccuracy(), AUC()])
 
-# initialize the transfer model ResNet50 with appropriate properties per our need.
-# we are passing paramers as following
-# 1) weights='imagenet' - Using this we are carring weights as of original weights.
-# 2) input_tensor to pass the ResNet50 using input_tensor
-# 3) we want to change the last layer so we are not including top layer
-resnet_model=resnet50.ResNet50(weights='imagenet',input_tensor=input_layer,include_top=False)
+# Train the model
 
-resnet_model.summary()
-#%%
-# access the current last layer of the model and add flatten and dense after it
+early_stop = EarlyStopping(monitor='val_loss', patience=5, mode='min')
+checkpoint = ModelCheckpoint('../SCRIPTS/TDL/PHYCUV/MODELS/VGG16/my_modelV2.h5', monitor='val_loss', save_best_only=True, mode='min', verbose=1)
+model.fit(X_train, y_train, epochs=100, batch_size=32, validation_data=(X_test, y_test), callbacks=[early_stop])
 
-print("Summary of Custom ResNet50 model.\n")
-print("1) We flatten the last layer and added 1 Dense layer and 1 output layer.\n")
+#%%%
 
-last_layer=resnet_model.output # we are taking last layer of the model
 
-# Add flatten layer: we are extending Neural Network by adding flattn layer
-flatten=layers.Flatten()(last_layer) 
 
-# Add dense layer
-# dense1=layers.Dense(100,activation='relu')(flatten)
+# %%
+#________________________________________CODE FOR TESTING IMAGES OVER TRAINED MODEL_________________
+from tensorflow.keras.preprocessing import image
+img = image.load_img('../SCRIPTS/TDL/PHYCUV/AUSPEC/INCT41_20201114_234500/INCT41_20201114_234500_2.png', target_size=(SIZE,SIZE,3))
 
-# Add dense layer to the final output layer
-output_layer=layers.Dense(6,activation='softmax')(flatten)
+img = image.img_to_array(img)
+img = img/255.
+plt.imshow(img)
+img = np.expand_dims(img, axis=0)
 
-# Creating modle with input and output layer
-model=models.Model(inputs=input_layer,outputs=output_layer)
+classes = np.array(df.columns[2:]) #Get array of all classes
+proba = model.predict(img)  #Get probabilities for each class
+sorted_categories = np.argsort(proba[0])[:-8:-1]  #Get class names for top 10 categories
 
-# Summarize the model
-model.summary()
+#Print classes and corresponding probabilities
+for i in range(7):
+    print("{}".format(classes[sorted_categories[i]])+" ({:.3})".format(proba[0][sorted_categories[i]]))
+#_____________________________________________________________________________________________________________
 
-#%%
-# we will freez all the layers except the last layer
 
-# we are making all the layers intrainable except the last layer
-print("We are making all the layers intrainable except the last layer. \n")
-for layer in resnet_model.layers[:-1]:
-    layer.trainable=False
-#%%
 
-# Compiling Model
 
-model.compile(loss='categorical_crossentropy', optimizer='adam',metrics=['accuracy'])
 
-print("Model compilation completed.")
-#%%
 
-# Fit the Model
 
-model.fit(x_train,y_train,epochs=20,batch_size=64,verbose=True,validation_data=(x_test,y_test))
 
-print("Fitting the model completed.")
+
+#########################_________________________________MODEL 2_______________________________#########################
 
 #%%
 
 
-img=image.load_img('../SCRIPTS/TDL/PHYCUV/AUSPEC/INCT41_20200217_001500/INCT41_20200217_001500_7.png',target_size=(350,350))
 
-img=image.img_to_array(img)
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras.layers import Dense, Flatten
+from tensorflow.keras.models import Model
+from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
+from sklearn.metrics import roc_auc_score
 
+
+
+# Load the pre-trained ResNet50 model
+base_model = tf.keras.applications.ResNet50(
+    include_top=False, weights='imagenet', input_shape=(224, 224, 3)
+)
+
+# Freeze the layers in the base model
+for layer in base_model.layers:
+    layer.trainable = False
+
+# Add a custom output layer for multi-label classification
+x = Flatten()(base_model.output)
+x = Dense(256, activation='relu')(x)
+output = Dense(7, activation='sigmoid')(x)
+
+# Create the model
+model = Model(inputs=base_model.input, outputs=output)
+
+# Compile the model with Adam optimizer, binary crossentropy loss, and metrics AUC and binary accuracy
+model.compile(
+    optimizer=Adam(lr=0.001),
+    loss='binary_crossentropy',
+    metrics=[tf.keras.metrics.AUC(curve='ROC'), 'binary_accuracy']
+)
+
+# Set up early stopping and model checkpoint callbacks
+early_stop = EarlyStopping(monitor='val_loss', patience=5, verbose=1, mode='min', restore_best_weights=True)
+checkpoint = ModelCheckpoint('../SCRIPTS/TDL/PHYCUV/MODELS/RESNET50/my_model.h5', monitor='val_loss', save_best_only=True, mode='min', verbose=1)
+
+# Train the model for 100 epochs with batch size 32
+history = model.fit(
+    X_train, y_train,
+    batch_size=32,
+    epochs=100,
+    validation_data=(X_test, y_test),
+    callbacks=[early_stop, checkpoint]
+)
+
+# %%
+# ____________________TESTING WITH A SMALL DATASET NOT USED IN TRAINING OR TESTING________________________________________________________________
+
+
+df = pd.read_csv('../SCRIPTS/TDL/PHYCUV/DATASET/merged_df_personal.csv')
+# Preprocess images creating caracteristic array
+X = preprocess_images(image_paths) 
+ 
+# Images path
+image_directory ='../SCRIPTS/TDL/PHYCUV/AUSPEC'
+#Creating auxiliar Dataframe
+df_T = df
+# Obtaining labels array in Numpy format
+y = np.array(df.drop(['NAME','Path'],axis=1))
+
+#%%
+test_loss, test_accuracy = model.evaluate(X, y)
+
+# Print the test loss and accuracy
+print(f'Test loss: {test_loss}, Test accuracy: {test_accuracy}')
+#%%
+# Make predictions on the test data
+y_pred = model.predict(X)
+
+# Compute the evaluation metrics
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, hamming_loss
+test_accuracy = accuracy_score(y, y_pred.round())
+test_precision = precision_score(y, y_pred.round(), average='micro')
+test_recall = recall_score(y, y_pred.round(), average='micro')
+test_f1_score = f1_score(y, y_pred.round(), average='micro')
+test_hamming_loss = hamming_loss(y, y_pred.round())
+
+# Print the evaluation metrics
+print(f'Test accuracy: {test_accuracy}')
+print(f'Test precision: {test_precision}')
+print(f'Test recall: {test_recall}')
+print(f'Test f1 score: {test_f1_score}')
+print(f'Test hamming loss: {test_hamming_loss}')
+
+#______________________________________________________END________________________________________________________________
+#%%
+
+
+
+
+
+
+
+
+
+
+
+#____________________5________________
+#%%
+import numpy as np
+import tensorflow as tf
+from tensorflow import keras
+from tensorflow.keras.preprocessing import image
+from IPython.display import Image
 import matplotlib.pyplot as plt
-plt.imshow(img.astype('int32'))
-plt.show()
+# %%
 
-img=resnet50.preprocess_input(img)
-prediction=model.predict(img.reshape(1,350,350,3))
-output=np.argmax(prediction)
- 
- 
- #%%
- 
- 
- def preprocess_images(paths, target_size=(350,350,3)):
-    def load_and_preprocess_image(path):
-        img = image.load_img(path, target_size=target_size)
-        img_array = image.img_to_array(img)
-        return resnet50.preprocess_input(np.array([img_array]))
+image = tf.keras.preprocessing.image.load_img('../SCRIPTS/TDL/PHYCUV/AUSPEC/INCT41_20200126_200000/INCT41_20200126_200000_1.png',target_size=(350,350,3),grayscale=True)
+input_arr = tf.keras.preprocessing.image.img_to_array(image)
+input_arr = tf.keras.applications.mobilenet.preprocess_input(input_arr)
+plt.imshow(input_arr)
+#%%
+input_arr = np.array([input_arr])  # Convert single image to a batch.
+predictions = model.predict(input_arr)
 
-    images = tf.map_fn(load_and_preprocess_image, paths, dtype=tf.float64)
-    return images
 
-# Get image paths and labels
-image_paths = merged_df['Path'].values
-labels = merged_df.drop(['Path', 'NAME'], axis=1).to_numpy()
 
-# Create dataset from image paths and labels
-dataset = tf.data.Dataset.from_tensor_slices((image_paths, labels))
-dataset = dataset.map(lambda x, y: (preprocess_images(x), y))
 
-# Split the dataset into training and testing datasets
-x_train, x_test, y_train, y_test = train_test_split(img, Y, test_size=0.15)
+#______________5_______________________
 
+# %%
+import tensorflow as tf
+from tensorflow.keras.applications.mobilenet import MobileNet
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense, GlobalAveragePooling2D
+from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
+from sklearn.metrics import roc_auc_score
+from sklearn.metrics import f1_score
+import tensorflow as tf
+from keras.metrics import BinaryAccuracy, AUC
+from tensorflow.keras.models import load_model, save_model
+
+# Load pre-trained MobileNet model with imagenet weights and exclude the top layer
+base_model = MobileNet(weights='imagenet', include_top=False, input_shape=(224, 224, 3))
 
 #%%
-batch_size = 64
-train_dataset = dataset.batch(batch_size).shuffle(10000)
-test_dataset = x_test.batch(batch_size)
+# Add layers on top of the pre-trained model
 
-model.fit(train_dataset, epochs=4, verbose=True, validation_data=test_dataset)
+x = keras.layers.Flatten()(base_model.output)
+x = keras.layers.Dense(256, activation='relu')(x)
+x = keras.layers.Dropout(0.5)(x)
+predictions = keras.layers.Dense(7, activation='sigmoid')(x)
+model = keras.models.Model(inputs=base_model.input, outputs=predictions)
+
+# Freeze the base model layers so that they are not trainable
+for layer in base_model.layers:
+    layer.trainable = False
+
+model = keras.models.Model(inputs=base_model.input, outputs=predictions)
+
+# Set up the optimizer, loss function, and evaluation metric
+optimizer = Adam(learning_rate=1e-4)
+loss = 'binary_crossentropy'
+metric = AUC()
+
+# Compile the model
+model.compile(optimizer=optimizer, loss=loss, metrics=[BinaryAccuracy(), AUC()])
+
+# Train the model
+
+early_stop = EarlyStopping(monitor='val_loss', patience=5, mode='min')
+checkpoint = ModelCheckpoint('../SCRIPTS/TDL/PHYCUV/MODELS/MobileNet/my_model.h5', monitor='val_loss', save_best_only=True, mode='min', verbose=1)
+history=model.fit(X_train, y_train, epochs=100, batch_size=32, validation_data=(X_test, y_test), callbacks=[early_stop,checkpoint])
 
 #%%
-optimizer = tf.keras.optimizers.AdamW()
-model.compile(loss='categorical_crossentropy', optimizer=optimizer, metrics=['accuracy'])
+
+######### MOBILE NET 2########################
+#%%import tensorflow as tf
+from tensorflow.keras.layers import Dense, Flatten
+from tensorflow.keras.models import Model
+from tensorflow.keras.applications.mobilenet import MobileNet
+from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
+from sklearn.metrics import f1_score
+
+# Load the pre-trained MobileNet model
+base_model = MobileNet(
+    include_top=False, weights='imagenet', input_shape=(224, 224, 3)
+)
+
+# Freeze the layers in the base model
+for layer in base_model.layers:
+    layer.trainable = False
+
+# Add a custom output layer for multilabel classification
+x = Flatten()(base_model.output)
+x = Dense(256, activation='relu')(x)
+output = Dense(7, activation='sigmoid')(x)
+
+# Create the model
+model = Model(inputs=base_model.input, outputs=output)
+
+# Compile the model with Adam optimizer, binary crossentropy loss, and metrics AUC and binary accuracy
+model.compile(
+    optimizer=Adam(lr=0.001),
+    loss='binary_crossentropy',
+    metrics=[tf.keras.metrics.AUC(curve='ROC'), 'binary_accuracy']
+)
+
+# Set up early stopping and model checkpoint callbacks
+early_stop = EarlyStopping(monitor='val_f1_score', patience=5, verbose=1, mode='max', restore_best_weights=True)
+checkpoint = ModelCheckpoint('../SCRIPTS/TDL/PHYCUV/MODELS/MobileNet/my_modelV2.h5', monitor='val_f1_score', save_best_only=True, mode='max', verbose=1)
+
+# Train the model for 100 epochs with batch size 32
+history = model.fit(
+    X_train, y_train,
+    batch_size=32,
+    epochs=100,
+    validation_data=(X_test, y_test),
+    callbacks=[early_stop, checkpoint]
+)
+
+# Evaluate the model on the test set using F1 score
+y_pred = model.predict(X_test)
+test_f1_score = f1_score(y_test, y_pred > 0.5, average='micro')
+print(f'Test F1 score: {test_f1_score}')
+
+#%%
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras.layers import Dense, Flatten
+from tensorflow.keras.models import Model
+from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
+from sklearn.model_selection import GridSearchCV
+from sklearn.metrics import roc_auc_score
+
+
+# Define the hyperparameters to search through
+hyperparams = {
+    'lr': [0.0001, 0.001, 0.01],
+    'batch_size': [16, 32, 64],
+    'epochs': [50, 100, 150]
+}
+
+# Define the pre-trained model to use
+base_model = tf.keras.applications.MobileNet(
+    include_top=False, weights='imagenet', input_shape=(224, 224, 3)
+)
+
+# Freeze the layers in the base model
+for layer in base_model.layers:
+    layer.trainable = False
+
+# Add a custom output layer for multi-label classification
+x = Flatten()(base_model.output)
+x = Dense(256, activation='relu')(x)
+output = Dense(7, activation='sigmoid')(x)
+
+# Create the model
+model = Model(inputs=base_model.input, outputs=output)
+
+# Compile the model with Adam optimizer, binary crossentropy loss, and metrics AUC and binary accuracy
+model.compile(
+    optimizer=Adam(lr=0.001),
+    loss='binary_crossentropy',
+    metrics=[tf.keras.metrics.AUC(curve='ROC'), 'binary_accuracy']
+)
+
+# Set up early stopping and model checkpoint callbacks
+early_stop = EarlyStopping(monitor='val_loss', patience=5, verbose=1, mode='min', restore_best_weights=True)
+
+# Define the model checkpoint callback to save each trained model
+def save_model(epoch, logs):
+    model.save(f'../SCRIPTS/TDL/PHYCUV/MODELS/MobileNet/model_{logs["lr"]}_{logs["batch_size"]}_{logs["epochs"]}_{epoch}.h5')
+
+checkpoint = tf.keras.callbacks.LambdaCallback(on_epoch_end=save_model)
+
+# Use GridSearchCV to find the best combination of hyperparameters
+grid = GridSearchCV(
+    estimator=model,
+    param_grid=hyperparams,
+    cv=3,
+    scoring='f1_macro',
+    n_jobs=-1
+)
+
+# Train the model using GridSearchCV
+history = grid.fit(X_train, y_train, validation_data=(X_test, y_test), callbacks=[early_stop, checkpoint])
+
+# Print the best hyperparameters and their scores
+print(f'Best hyperparameters: {grid.best_params_}')
+print(f'Best score: {grid.best_score_}')
+
+# %%
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras.layers import Dense, Flatten
+from tensorflow.keras.models import Model
+from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
+from keras.wrappers.scikit_learn import KerasClassifier
+from sklearn.model_selection import GridSearchCV
+from sklearn.metrics import f1_score
+
+# Define a function to create the Keras model
+def create_model(lr=0.001):
+    # Load the pre-trained MobileNet model
+    base_model = tf.keras.applications.MobileNet(
+        include_top=False, weights='imagenet', input_shape=(224, 224, 3)
+    )
+
+    # Freeze the layers in the base model
+    for layer in base_model.layers:
+        layer.trainable = False
+
+    # Add a custom output layer for multi-label classification
+    x = Flatten()(base_model.output)
+    x = Dense(256, activation='relu')(x)
+    output = Dense(7, activation='sigmoid')(x)
+
+    # Create the model
+    model = Model(inputs=base_model.input, outputs=output)
+
+    # Compile the model with Adam optimizer, binary crossentropy loss, and metrics AUC and binary accuracy
+    model.compile(
+        optimizer=Adam(lr=lr),
+        loss='binary_crossentropy',
+        metrics=[tf.keras.metrics.AUC(curve='ROC'), 'binary_accuracy']
+    )
+
+    return model
+
+# Wrap the Keras model inside a scikit-learn estimator
+estimator = KerasClassifier(build_fn=create_model)
+
+
+# Define the hyperparameter grid to search over
+hyperparams = {
+    'lr': [0.001, 0.0001],
+    'batch_size': [32, 64],
+    'epochs': [50, 100]
+}
+
+# Set up early stopping and model checkpoint callbacks
+early_stop = EarlyStopping(monitor='val_loss', patience=5, verbose=1, mode='min', restore_best_weights=True)
+checkpoint = ModelCheckpoint('model.h5', monitor='val_loss', save_best_only=True, mode='min', verbose=1)
+
+# Set up the GridSearchCV object
+grid = GridSearchCV(
+    estimator=estimator,
+    param_grid=hyperparams,
+    scoring='f1_micro',
+    n_jobs=-1,
+    cv=5
+)
+
+# Train the model using GridSearchCV
+history = grid.fit(X_train, y_train, validation_data=(X_test, y_test), callbacks=[early_stop, checkpoint])
+
+# Print the best hyperparameters and their scores
+print(f'Best hyperparameters: {grid.best_params_}')
+print(f'Best score: {grid.best_score_}')
+
+# %%
