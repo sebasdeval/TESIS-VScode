@@ -133,7 +133,7 @@ model.compile(optimizer=optimizer, loss=loss, metrics=[BinaryAccuracy(), AUC()])
 
 early_stop = EarlyStopping(monitor='val_loss', patience=5, mode='min')
 checkpoint = ModelCheckpoint('../SCRIPTS/TDL/PHYCUV/MODELS/VGG16/my_modelV2.h5', monitor='val_loss', save_best_only=True, mode='min', verbose=1)
-model.fit(X_train, y_train, epochs=100, batch_size=32, validation_data=(X_test, y_test), callbacks=[early_stop])
+model.fit(X_train, y_train, epochs=100, batch_size=32, validation_data=(X_test, y_test), callbacks=[early_stop,checkpoint])
 
 #%%%
 
@@ -194,6 +194,7 @@ for layer in base_model.layers:
 # Add a custom output layer for multi-label classification
 x = Flatten()(base_model.output)
 x = Dense(256, activation='relu')(x)
+x = keras.layers.Dropout(0.5)(x)
 output = Dense(7, activation='sigmoid')(x)
 
 # Create the model
@@ -503,14 +504,14 @@ estimator = KerasClassifier(build_fn=create_model)
 
 # Define the hyperparameter grid to search over
 hyperparams = {
-    'lr': [0.001, 0.0001],
-    'batch_size': [32, 64],
-    'epochs': [50, 100]
+    'lr': np.arange(0.0001, 0.0101,0.0001),
+    'batch_size': np.arange(16,65,16),
+    'epochs': np.arange(10, 110,10)
 }
 
 # Set up early stopping and model checkpoint callbacks
 early_stop = EarlyStopping(monitor='val_loss', patience=5, verbose=1, mode='min', restore_best_weights=True)
-checkpoint = ModelCheckpoint('model.h5', monitor='val_loss', save_best_only=True, mode='min', verbose=1)
+checkpoint = ModelCheckpoint('../SCRIPTS/TDL/PHYCUV/MODELS/MobileNet/model.h5', monitor='val_loss', save_best_only=True, mode='min', verbose=1)
 
 # Set up the GridSearchCV object
 grid = GridSearchCV(
