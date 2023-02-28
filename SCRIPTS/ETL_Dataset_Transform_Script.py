@@ -56,7 +56,7 @@ src_dir = '../AUDIO_INTC41/INCT41/'
 dst_dir = '../SCRIPTS/TDL/PHYCUV/AUDIO_TRIM/'
 
 #________PATHS FOR GETTING SPECTROGRAM FILES________
-input_folder = '../SCRIPTS/TDL/PHYCUV/AU_PR8/'
+input_folder = '../SCRIPTS/TDL/PHYCUV/AUDIO_TRIM/'
 output_folder = '../SCRIPTS/TDL/PHYCUV/AUSPEC/'
 
 
@@ -180,9 +180,10 @@ def trim_audio_files(src_dir, dst_dir, chunk_length):
                 num_frames = audio_file.getnframes()
                 # Get the frame rate of the audio file
                 frame_rate = audio_file.getframerate()
+                #print(frame_rate)
                 # Calculate the number of chunks in the audio file
                 num_chunks = num_frames // (frame_rate * chunk_length)
-
+                #print(num_chunks)
                 # Make a folder for each audio file
                 file_dir = os.path.join(dst_dir, filename.split(".")[0])
                 if not os.path.exists(file_dir):
@@ -234,9 +235,39 @@ def load_annotations(path_annot, nombre):
     return df_mlabel, fname_lists
     
     
-def generate_spectrogram(audio_file_path, output_file_path, sr=22050, n_fft=2048, hop_length=512):
+# def generate_spectrogram(audio_file_path, output_file_path, sr=22050, n_fft=1723, hop_length=64):
+#     """
+#     Generate spectrogram from audio file and save it as an image.
+    
+#     Parameters
+#     ----------
+#     audio_file_path : str
+#         Path to audio file
+#     output_file_path : str
+#         Path to save the generated spectrogram
+#     sr : int, optional
+#         Sampling rate of the audio file, by default 22050
+#     n_fft : int, optional
+#         Length of the FFT window, by default 2048
+#     hop_length : int, optional
+#         Number of samples between successive frames, by default 512
+    
+#     Returns
+#     -------
+#     None
+#     """
+#     y, sr = librosa.load(audio_file_path, sr=sr)
+#     S = np.abs(librosa.stft(y, n_fft=n_fft, hop_length=hop_length))
+#     log_S = librosa.amplitude_to_db(S)
+#     plt.figure(figsize=(8, 8))
+#     librosa.display.specshow(log_S, sr=sr, x_axis='time', y_axis='log', cmap='inferno')
+#     plt.axis('off')
+#     plt.savefig(output_file_path, bbox_inches='tight', pad_inches=0, dpi=100)
+#     plt.close()
+
+def generate_spectrogram(audio_file_path, output_file_path, sr=22050, n_fft=1024, hop_length=64, n_mels=256):
     """
-    Generate spectrogram from audio file and save it as an image.
+    Generate mel spectrogram from audio file and save it as an image.
     
     Parameters
     ----------
@@ -250,21 +281,22 @@ def generate_spectrogram(audio_file_path, output_file_path, sr=22050, n_fft=2048
         Length of the FFT window, by default 2048
     hop_length : int, optional
         Number of samples between successive frames, by default 512
+    n_mels : int, optional
+        Number of mel bands to generate, by default 128
     
     Returns
     -------
     None
     """
     y, sr = librosa.load(audio_file_path, sr=sr)
-    S = np.abs(librosa.stft(y, n_fft=n_fft, hop_length=hop_length))
+    S = librosa.feature.melspectrogram(y=y, sr=sr, n_fft=n_fft, hop_length=hop_length, n_mels=n_mels)
     log_S = librosa.amplitude_to_db(S)
     plt.figure(figsize=(8, 8))
-    librosa.display.specshow(log_S, sr=sr, x_axis='time', y_axis='log', cmap='inferno')
+    librosa.display.specshow(log_S, sr=sr, x_axis='time', y_axis='mel', cmap='jet')
+    #plt.colorbar(format='%+2.0f dB')
     plt.axis('off')
     plt.savefig(output_file_path, bbox_inches='tight', pad_inches=0, dpi=100)
     plt.close()
-
-
 
 
 def generate_spectrograms_from_folder(input_folder, output_folder):
@@ -356,6 +388,43 @@ def create_spectrogram_dataframe(directory):
     return spectrogram_df
 
 
+# def create_label_df(input_folder):
+#     """
+#     Creates a label DataFrame based on csv files in the input folder.
+
+#     Parameters
+#     ----------
+#     input_folder : str
+#         The path to the folder containing the csv files.
+
+#     Returns
+#     -------
+#     label_df : pandas DataFrame
+#         The created label DataFrame containing the labels of the csv files.
+
+#     """
+#     label_dict = {
+#         'PHYCUV_M': 0,
+#         'PHYCUV_F': 0,
+#         'BOAALB_M': 0,
+#         'BOAALB_F': 0,
+#         'BOALUN_F': 0,
+#         'BOALUN_M': 0,
+#         'PHYCUV_M': 0,
+#         'PHYCUV_F': 0
+#     }
+#     label_df = pd.DataFrame(columns=['NAME'] + list(label_dict.keys()))
+    
+#     for root, dirs, files in os.walk(input_folder):
+#         for file in files:
+#             if file.endswith(".csv"):
+#                 csv_file_path = os.path.join(root, file)
+#                 labels = get_labels_from_csv(csv_file_path)
+#                 file_name = os.path.splitext(file)[0]
+#                 label_dict = {key: 1 if key in labels else 0 for key in label_dict}
+#                 label_df = label_df.append({'NAME': file_name, **label_dict}, ignore_index=True)
+#     return label_df
+
 def create_label_df(input_folder):
     """
     Creates a label DataFrame based on csv files in the input folder.
@@ -379,7 +448,8 @@ def create_label_df(input_folder):
         'BOALUN_F': 0,
         'BOALUN_M': 0,
         'PHYCUV_M': 0,
-        'PHYCUV_F': 0
+        'PHYCUV_F': 0,
+        'none': 0
     }
     label_df = pd.DataFrame(columns=['NAME'] + list(label_dict.keys()))
     
@@ -389,10 +459,11 @@ def create_label_df(input_folder):
                 csv_file_path = os.path.join(root, file)
                 labels = get_labels_from_csv(csv_file_path)
                 file_name = os.path.splitext(file)[0]
-                label_dict = {key: 1 if key in labels else 0 for key in label_dict}
+                has_labels = any(label in labels for label in label_dict)
+                label_dict['none'] = 1 if not has_labels else 0
+                label_dict.update({key: 1 if key in labels else 0 for key in label_dict if key != 'none'})
                 label_df = label_df.append({'NAME': file_name, **label_dict}, ignore_index=True)
     return label_df
-
 
 def save_merged_df(merged_df, save_path):
     """
@@ -409,7 +480,7 @@ def save_merged_df(merged_df, save_path):
     -------
     None
     """
-    file_path = os.path.join(save_path, "label_df.csv")
+    file_path = os.path.join(save_path, "merged_df.csv")
     merged_df.to_csv(file_path, index=False)
                 
                   
@@ -463,7 +534,9 @@ merged_df = spectrogram_df.merge(label_df, on='NAME', how='right')
 #%%
 #Saving DataFrames in the same path
 save_path = "../SCRIPTS/TDL/PHYCUV/DATASET/"
-save_merged_df(label_df, save_path)
-save_merged_df(spectrogram_df, save_path)
+#save_merged_df(label_df, save_path)
+#save_merged_df(spectrogram_df, save_path)
 save_merged_df(merged_df, save_path)
 
+
+# %%
