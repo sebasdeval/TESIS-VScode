@@ -362,6 +362,7 @@ for layer in base_model.layers:
 # Add a custom output layer for multilabel classification
 x = Flatten()(base_model.output)
 x = Dense(256, activation='relu')(x)
+x = keras.layers.Dropout(0.5)(x)
 output = Dense(7, activation='sigmoid')(x)
 
 # Create the model
@@ -422,6 +423,7 @@ for layer in base_model.layers:
 # Add a custom output layer for multi-label classification
 x = Flatten()(base_model.output)
 x = Dense(256, activation='relu')(x)
+x = keras.layers.Dropout(0.5)(x)
 output = Dense(7, activation='sigmoid')(x)
 
 # Create the model
@@ -466,7 +468,7 @@ from tensorflow.keras.layers import Dense, Flatten
 from tensorflow.keras.models import Model
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
-from keras.wrappers.scikit_learn import KerasClassifier
+from scikeras.wrappers import KerasClassifier, KerasRegressor
 from sklearn.model_selection import GridSearchCV
 from sklearn.metrics import f1_score
 
@@ -484,6 +486,7 @@ def create_model(lr=0.001):
     # Add a custom output layer for multi-label classification
     x = Flatten()(base_model.output)
     x = Dense(256, activation='relu')(x)
+    x = keras.layers.Dropout(0.5)(x)
     output = Dense(7, activation='sigmoid')(x)
 
     # Create the model
@@ -491,7 +494,7 @@ def create_model(lr=0.001):
 
     # Compile the model with Adam optimizer, binary crossentropy loss, and metrics AUC and binary accuracy
     model.compile(
-        optimizer=Adam(lr=lr),
+        optimizer = tf.keras.optimizers.Adam(learning_rate=0.0001),
         loss='binary_crossentropy',
         metrics=[tf.keras.metrics.AUC(curve='ROC'), 'binary_accuracy']
     )
@@ -499,19 +502,19 @@ def create_model(lr=0.001):
     return model
 
 # Wrap the Keras model inside a scikit-learn estimator
-estimator = KerasClassifier(build_fn=create_model)
+estimator = KerasClassifier(model=create_model, lr=0.0001)
 
 
 # Define the hyperparameter grid to search over
 hyperparams = {
-    'lr': np.arange(0.0001, 0.0101,0.0001),
-    'batch_size': np.arange(16,65,16),
-    'epochs': np.arange(10, 110,10)
+    'lr':[0.0001],
+    'batch_size':[16,32],
+    'epochs': [10]
 }
 
 # Set up early stopping and model checkpoint callbacks
 early_stop = EarlyStopping(monitor='val_loss', patience=5, verbose=1, mode='min', restore_best_weights=True)
-checkpoint = ModelCheckpoint('../SCRIPTS/TDL/PHYCUV/MODELS/MobileNet/model.h5', monitor='val_loss', save_best_only=True, mode='min', verbose=1)
+checkpoint = ModelCheckpoint('../SCRIPTS/TDL/PHYCUV/MODELS/MobileNet/model_V3.h5', monitor='val_loss', save_best_only=True, mode='min', verbose=1)
 
 # Set up the GridSearchCV object
 grid = GridSearchCV(
@@ -519,7 +522,7 @@ grid = GridSearchCV(
     param_grid=hyperparams,
     scoring='f1_micro',
     n_jobs=-1,
-    cv=5
+    cv=2
 )
 
 # Train the model using GridSearchCV
@@ -528,5 +531,6 @@ history = grid.fit(X_train, y_train, validation_data=(X_test, y_test), callbacks
 # Print the best hyperparameters and their scores
 print(f'Best hyperparameters: {grid.best_params_}')
 print(f'Best score: {grid.best_score_}')
+
 
 # %%
