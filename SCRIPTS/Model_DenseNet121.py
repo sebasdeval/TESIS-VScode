@@ -35,6 +35,7 @@ from scikeras.wrappers import KerasClassifier, KerasRegressor
 from sklearn.model_selection import GridSearchCV
 from sklearn.metrics import f1_score
 import time
+import tensorflow as tf
 
 
 # Preprocessing the dataset
@@ -79,69 +80,66 @@ X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=760, test
 #X_tensor_train, X_tensor_test, y_tensor_train, y_tensor_test = train_test_split(X_tensor, y_tensor, random_state=20, test_size=0.2)
 
 #%%
+from tensorflow.keras.layers import Dense, Flatten
+from tensorflow.keras.models import Model
+from tensorflow.keras.applications.mobilenet import MobileNet
+from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
+from tensorflow.keras.metrics import Precision, Recall, AUC
+from sklearn.metrics import average_precision_score
+from sklearn.metrics import f1_score
 
-# Define a function to create the Keras model
-def create_model(lr=0.0001):
-    start_time = time.time()
-    # Load the pre-trained MobileNet model
-    base_model = tf.keras.applications.DenseNet121(
-        include_top=False, weights='imagenet', input_shape=(224, 224, 3)
-    )
+# Load the pre-trained MobileNet model
+base_model = tf.keras.applications.DenseNet121(
+    include_top=False, weights='imagenet', input_shape=(224, 224, 3)
+)
 
-    # Freeze the layers in the base model
-    for layer in base_model.layers:
-        layer.trainable = False
+# Freeze the layers in the base model
+for layer in base_model.layers:
+    layer.trainable = False
 
-    # Add a custom output layer for multi-label classification
-    x = Flatten()(base_model.output)
-    x = Dense(256, activation='relu')(x)
-    x = keras.layers.Dropout(0.5)(x)
-    output = Dense(7, activation='sigmoid')(x)
+# Add a custom output layer for multilabel classification
+x = Flatten()(base_model.output)
+x = Dense(256, activation='relu', kernel_regularizer=tf.keras.regularizers.l2(0.01))(x) #)(x)
+x = keras.layers.Dropout(0.5)(x)
+output = Dense(7, activation='sigmoid', kernel_regularizer=tf.keras.regularizers.l2(0.01))(x) #)(x)
 
-    # Create the model
-    model = Model(inputs=base_model.input, outputs=output)
+# Create the model
+model = Model(inputs=base_model.input, outputs=output)
 
-    # Compile the model with Adam optimizer, binary crossentropy loss, and metrics AUC and binary accuracy
-    model.compile(
-        optimizer = tf.keras.optimizers.Adam(learning_rate=0.0001),
-        loss='binary_crossentropy',
-        metrics=[tf.keras.metrics.AUC(curve='ROC'), 'binary_accuracy']
-    )
-    end_time = time.time()
-    duration = end_time - start_time
-    return model
-
-# Wrap the Keras model inside a scikit-learn estimator
-estimator = KerasClassifier(model=create_model, lr=0.0001)
-
-
-# Define the hyperparameter grid to search over
-hyperparams = {
-    'lr':[0.0001,0.00001],
-    'batch_size':[16,32,64],
-    'epochs': [20,30,40,50]
-}
+# Compile the model with Adam optimizer, binary crossentropy loss, and metrics AUC and binary accuracy
+model.compile(
+    optimizer=Adam(learning_rate=0.01),
+    loss='binary_crossentropy',
+    #metrics=[tf.keras.metrics.AUC(curve='ROC'), 'binary_accuracy']
+    metrics=[Precision(), Recall(), AUC(curve='ROC'), AUC(curve='PR', name='PR AUC'), 'binary_accuracy']
+)
 
 # Set up early stopping and model checkpoint callbacks
 early_stop = EarlyStopping(monitor='val_loss', patience=5, verbose=1, mode='min', restore_best_weights=True)
-checkpoint = ModelCheckpoint('../SCRIPTS/TDL/PHYCUV/MODELS/DenseNet121/model_V1.h5', monitor='val_loss', save_best_only=True, mode='min', verbose=1)
+checkpoint = ModelCheckpoint('../SCRIPTS/TDL/PHYCUV/MODELS/DenseNet121/DenseNet_Reg_l2_lr01.h5', monitor='val_loss', save_best_only=True, mode='min', verbose=1)
 
-# Set up the GridSearchCV object
-grid = GridSearchCV(
-    estimator=estimator,
-    param_grid=hyperparams,
-    scoring='f1_micro',
-    n_jobs=-1,
-    cv=2
+# Train the model for 100 epochs with batch size 32
+history = model.fit(
+    X_train, y_train,
+    batch_size=32,
+    epochs=100,
+    validation_data=(X_test, y_test),
+    callbacks=[early_stop, checkpoint],
+    verbose = 1
 )
 
-# Train the model using GridSearchCV
-start_time = time.time()
-history = grid.fit(X_train, y_train, validation_data=(X_test, y_test), callbacks=[early_stop, checkpoint])
-end_time = time.time()
-duration = end_time - start_time
-print(f"Training the model took {duration:.2f} seconds")
+# Evaluate the model on the test set using F1 score
+y_pred = model.predict(X_test)
+test_f1_score = f1_score(y_test, y_pred > 0.5, average='micro')
+test_precision = Precision()(y_test, y_pred).numpy()
+test_recall = Recall()(y_test, y_pred).numpy()
+test_roc_auc = AUC(curve='ROC')(y_test, y_pred).numpy()
+test_pr_auc = average_precision_score(y_test, y_pred, average='micro')
+print(f'Test F1 score: {test_f1_score}')
+print(f'Test precision: {test_precision}')
+print(f'Test recall: {test_recall}')
+print(f'Test ROC AUC: {test_roc_auc}')
+print(f'Test PR AUC: {test_pr_auc}')
+#%%
 
-# Print the best hyperparameters and their scores
-print(f'Best hyperparameters: {grid.best_params_}')
-print(f'Best score: {grid.best_score_}')

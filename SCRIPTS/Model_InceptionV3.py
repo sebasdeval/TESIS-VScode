@@ -1,3 +1,4 @@
+
 #%%
 
 import numpy as np
@@ -44,7 +45,7 @@ df = pd.read_csv('../SCRIPTS/TDL/PHYCUV/DATASET/merged_df.csv')
 
 #df = pd.read_csv('../SCRIPTS/TDL/PHYCUV/DATASET/merged_df_personal.csv')
 
-#%%
+
 # Eliminating all rows that contain no species identificated in the spectrograms
 # Find the sum of each row for the last 6 columns
 row_sums = df.iloc[:, -6:].sum(axis=1)
@@ -63,7 +64,7 @@ def preprocess_images(paths, target_size=(224,224,3)):
         X.append(img_array)
     return np.array(X)
 image_paths = df['Path'].values
-#%%
+
 
 # Images path
 image_directory ='../SCRIPTS/TDL/PHYCUV/AUSPEC'
@@ -80,17 +81,19 @@ X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=760, test
 #X_tensor_train, X_tensor_test, y_tensor_train, y_tensor_test = train_test_split(X_tensor, y_tensor, random_state=20, test_size=0.2)
 
 #%%
+
+
 from tensorflow.keras.layers import Dense, Flatten
 from tensorflow.keras.models import Model
-from tensorflow.keras.applications.mobilenet import MobileNet
+from tensorflow.keras.applications.inception_v3 import InceptionV3
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
 from sklearn.metrics import f1_score
 from tensorflow.keras.metrics import Precision, Recall, AUC
 from sklearn.metrics import average_precision_score
 
-# Load the pre-trained MobileNet model
-base_model = MobileNet(
+# Load the pre-trained InceptionV3 model
+base_model = InceptionV3(
     include_top=False, weights='imagenet', input_shape=(224, 224, 3)
 )
 
@@ -100,9 +103,9 @@ for layer in base_model.layers:
 
 # Add a custom output layer for multilabel classification
 x = Flatten()(base_model.output)
-x = Dense(256, activation='relu',)(x) #kernel_regularizer=tf.keras.regularizers.l2(0.01))(x) #
+x = Dense(256, activation='relu')(x) #,kernel_regularizer=tf.keras.regularizers.l2(0.01))(x) #)(x)
 x = keras.layers.Dropout(0.5)(x)
-output = Dense(7, activation='sigmoid',)(x)# kernel_regularizer=tf.keras.regularizers.l2(0.01))(x) 
+output = Dense(7, activation='sigmoid')(x) #,kernel_regularizer=tf.keras.regularizers.l2(0.01))(x) #)(x)
 
 # Create the model
 model = Model(inputs=base_model.input, outputs=output)
@@ -111,13 +114,12 @@ model = Model(inputs=base_model.input, outputs=output)
 model.compile(
     optimizer=Adam(learning_rate=0.01),
     loss='binary_crossentropy',
-    #metrics=[tf.keras.metrics.AUC(curve='ROC'), 'binary_accuracy']
     metrics=[Precision(), Recall(), AUC(curve='ROC'), AUC(curve='PR', name='PR AUC'), 'binary_accuracy']
 )
 
 # Set up early stopping and model checkpoint callbacks
-early_stop = EarlyStopping(monitor='val_loss', patience=5, verbose=1, mode='min', restore_best_weights=True,start_from_epoch=6)
-checkpoint = ModelCheckpoint('../SCRIPTS/TDL/PHYCUV/MODELS/MobileNet/MobileNet_lr_01_batch_32.h5', monitor='val_loss', save_best_only=True, mode='min', verbose=1)
+early_stop = EarlyStopping(monitor='val_loss', patience=5, verbose=1, mode='min', restore_best_weights=True)
+checkpoint = ModelCheckpoint('../SCRIPTS/TDL/PHYCUV/MODELS/InceptionV3/InceptionV3_lr01_Batch_32.h5', monitor='val_loss', save_best_only=True, mode='min', verbose=1)
 
 # Train the model for 100 epochs with batch size 32
 history = model.fit(
@@ -141,4 +143,6 @@ print(f'Test precision: {test_precision}')
 print(f'Test recall: {test_recall}')
 print(f'Test ROC AUC: {test_roc_auc}')
 print(f'Test PR AUC: {test_pr_auc}')
-#%%
+
+
+# %%

@@ -36,6 +36,11 @@ from sklearn.model_selection import GridSearchCV
 from sklearn.metrics import f1_score
 import time
 from tensorflow.keras.models import load_model
+#Dataframe for training 
+import pandas as pd
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras.preprocessing import image
 
 
 # Preprocessing the dataset
@@ -54,19 +59,22 @@ def preprocess_images(paths, target_size=(224,224,3)):
     return np.array(X)
 image_paths = df['Path'].values
 
-#%%
+
 
 X = preprocess_images(image_paths) 
 y = np.array(df.drop(['NAME','Path'],axis=1))
-
+#%%
 #Loading the model
-model = load_model('../SCRIPTS/TDL/PHYCUV/MODELS/RESNET50/my_model.h5') #CHANGE PATH TO LOAD DESIRED MODEL
+model = load_model('../SCRIPTS/TDL/PHYCUV/MODELS/RESNET50/Resnet50_Reg_L2_lr_0001_Batch32.h5') #CHANGE PATH TO LOAD DESIRED MODEL
 
 # Make predictions on the test data
 y_pred = model.predict(X)
 
 # Compute the evaluation metrics
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, hamming_loss
+from tensorflow.keras.metrics import Precision, Recall, AUC
+
+from sklearn.metrics import average_precision_score
 test_accuracy = accuracy_score(y, y_pred.round())
 test_precision = precision_score(y, y_pred.round(), average='micro')
 test_recall = recall_score(y, y_pred.round(), average='micro')
@@ -79,3 +87,17 @@ print(f'Test precision: {test_precision}')
 print(f'Test recall: {test_recall}')
 print(f'Test f1 score: {test_f1_score}')
 print(f'Test hamming loss: {test_hamming_loss}')
+
+
+print("ANOTHER METRICS")
+test_f1_score = f1_score(y, y_pred > 0.5, average='micro')
+test_precision = Precision()(y, y_pred).numpy()
+test_recall = Recall()(y, y_pred).numpy()
+test_roc_auc = AUC(curve='ROC')(y, y_pred).numpy()
+test_pr_auc = average_precision_score(y, y_pred, average='micro')
+print(f'Test F1 score: {test_f1_score}')
+print(f'Test precision: {test_precision}')
+print(f'Test recall: {test_recall}')
+print(f'Test ROC AUC: {test_roc_auc}')
+print(f'Test PR AUC: {test_pr_auc}')
+# %%
