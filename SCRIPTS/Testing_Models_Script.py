@@ -65,7 +65,7 @@ X = preprocess_images(image_paths)
 y = np.array(df.drop(['NAME','Path'],axis=1))
 #%%
 #Loading the model
-model = load_model('../SCRIPTS/TDL/PHYCUV/MODELS/RESNET50/Resnet50_Reg_L2_lr_0001_Batch32.h5') #CHANGE PATH TO LOAD DESIRED MODEL
+model = load_model('../SCRIPTS/TDL/PHYCUV/MODELS/RESNET50/Resnet50_lr_0001_Batch32.h5') #CHANGE PATH TO LOAD DESIRED MODEL
 
 # Make predictions on the test data
 y_pred = model.predict(X)
@@ -76,9 +76,9 @@ from tensorflow.keras.metrics import Precision, Recall, AUC
 
 from sklearn.metrics import average_precision_score
 test_accuracy = accuracy_score(y, y_pred.round())
-test_precision = precision_score(y, y_pred.round(), average='micro')
-test_recall = recall_score(y, y_pred.round(), average='micro')
-test_f1_score = f1_score(y, y_pred.round(), average='micro')
+test_precision = precision_score(y, y_pred.round(), average='samples')
+test_recall = recall_score(y, y_pred.round(), average='samples')
+test_f1_score = f1_score(y, y_pred.round(), average='samples')
 test_hamming_loss = hamming_loss(y, y_pred.round())
 
 # Print the evaluation metrics

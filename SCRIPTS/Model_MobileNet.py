@@ -37,21 +37,17 @@ from sklearn.metrics import f1_score
 import time
 import tensorflow as tf
 
-
+#%%
 # Preprocessing the dataset
 
-df = pd.read_csv('../SCRIPTS/TDL/PHYCUV/DATASET/merged_df.csv')
+df = pd.read_csv('../SCRIPTS/TDL/PHYCUV/DATASET/merged_df_SAMPLES_DUP.csv',delimiter=';')
 
 #df = pd.read_csv('../SCRIPTS/TDL/PHYCUV/DATASET/merged_df_personal.csv')
 
 #%%
 # Eliminating all rows that contain no species identificated in the spectrograms
 # Find the sum of each row for the last 6 columns
-row_sums = df.iloc[:, -6:].sum(axis=1)
 
-# Keep only the rows with a non-zero sum in the last 6 columns
-df_no_ze = df[row_sums != 0]
-df_all_ze = df[row_sums == 0]
 
 #Function for preprocesing images
 def preprocess_images(paths, target_size=(224,224,3)):
@@ -76,7 +72,7 @@ y = np.array(df.drop(['NAME','Path'],axis=1))
 #Declaring size of mages
 SIZE = 224
 # Dividing Dataset in training and testing with 20 percent of whole dataset for testing
-X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=760, test_size=0.2)
+X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=760, test_size=0.15)
 #X_tensor_train, X_tensor_test, y_tensor_train, y_tensor_test = train_test_split(X_tensor, y_tensor, random_state=20, test_size=0.2)
 
 #%%
@@ -100,16 +96,16 @@ for layer in base_model.layers:
 
 # Add a custom output layer for multilabel classification
 x = Flatten()(base_model.output)
-x = Dense(256, activation='relu',)(x) #kernel_regularizer=tf.keras.regularizers.l2(0.01))(x) #
+x = Dense(256, activation='relu',kernel_regularizer=tf.keras.regularizers.l2(0.01))(x) #
 x = keras.layers.Dropout(0.5)(x)
-output = Dense(7, activation='sigmoid',)(x)# kernel_regularizer=tf.keras.regularizers.l2(0.01))(x) 
+output = Dense(7, activation='sigmoid', kernel_regularizer=tf.keras.regularizers.l2(0.01))(x) 
 
 # Create the model
 model = Model(inputs=base_model.input, outputs=output)
 
 # Compile the model with Adam optimizer, binary crossentropy loss, and metrics AUC and binary accuracy
 model.compile(
-    optimizer=Adam(learning_rate=0.01),
+    optimizer=Adam(learning_rate=0.00001),
     loss='binary_crossentropy',
     #metrics=[tf.keras.metrics.AUC(curve='ROC'), 'binary_accuracy']
     metrics=[Precision(), Recall(), AUC(curve='ROC'), AUC(curve='PR', name='PR AUC'), 'binary_accuracy']
@@ -117,21 +113,21 @@ model.compile(
 
 # Set up early stopping and model checkpoint callbacks
 early_stop = EarlyStopping(monitor='val_loss', patience=5, verbose=1, mode='min', restore_best_weights=True,start_from_epoch=6)
-checkpoint = ModelCheckpoint('../SCRIPTS/TDL/PHYCUV/MODELS/MobileNet/MobileNet_lr_01_batch_32.h5', monitor='val_loss', save_best_only=True, mode='min', verbose=1)
+checkpoint = ModelCheckpoint('../SCRIPTS/TDL/PHYCUV/MODELS/MobileNet/MobileNet_OVERSAMPLED_LR_L2_lr_01_batch_32.h5', monitor='val_loss', save_best_only=True, mode='min', verbose=1)
 
 # Train the model for 100 epochs with batch size 32
 history = model.fit(
     X_train, y_train,
     batch_size=32,
-    epochs=100,
+    epochs=1000,
     validation_data=(X_test, y_test),
     callbacks=[early_stop, checkpoint],
     verbose = 1
 )
-
+#%%
 # Evaluate the model on the test set using F1 score
 y_pred = model.predict(X_test)
-test_f1_score = f1_score(y_test, y_pred > 0.5, average='micro')
+test_f1_score = f1_score(y_test, y_pred > 0.5, average=None)
 test_precision = Precision()(y_test, y_pred).numpy()
 test_recall = Recall()(y_test, y_pred).numpy()
 test_roc_auc = AUC(curve='ROC')(y_test, y_pred).numpy()
