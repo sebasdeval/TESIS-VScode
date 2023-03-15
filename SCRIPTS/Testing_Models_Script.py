@@ -45,7 +45,7 @@ from tensorflow.keras.preprocessing import image
 
 # Preprocessing the dataset
 
-df = pd.read_csv('../SCRIPTS/TDL/PHYCUV/DATASET/merged_df_personal.csv')
+df = pd.read_csv('../SCRIPTS/TDL/PHYCUV/DATASET/merged_df_3_Labels.csv')
 
 #%%
 #Function for preprocesing images
@@ -63,9 +63,10 @@ image_paths = df['Path'].values
 
 X = preprocess_images(image_paths) 
 y = np.array(df.drop(['NAME','Path'],axis=1))
+X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=760, test_size=0.15)
 #%%
 #Loading the model
-model = load_model('../SCRIPTS/TDL/PHYCUV/MODELS/RESNET50/Resnet50_lr_0001_Batch32.h5') #CHANGE PATH TO LOAD DESIRED MODEL
+model = load_model('../SCRIPTS/TDL/PHYCUV/MODELS/MobileNet/MobileNet_AUGMENTED_Lr_00001.h5') #CHANGE PATH TO LOAD DESIRED MODEL
 
 # Make predictions on the test data
 y_pred = model.predict(X)
@@ -90,7 +91,7 @@ print(f'Test hamming loss: {test_hamming_loss}')
 
 
 print("ANOTHER METRICS")
-test_f1_score = f1_score(y, y_pred > 0.5, average='micro')
+test_f1_score = f1_score(y, y_pred > 0.5, average=None)
 test_precision = Precision()(y, y_pred).numpy()
 test_recall = Recall()(y, y_pred).numpy()
 test_roc_auc = AUC(curve='ROC')(y, y_pred).numpy()

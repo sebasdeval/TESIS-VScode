@@ -40,7 +40,7 @@ import tensorflow as tf
 #%%
 # Preprocessing the dataset
 
-df = pd.read_csv('../SCRIPTS/TDL/PHYCUV/DATASET/merged_df_SAMPLES_DUP.csv',delimiter=';')
+df = pd.read_csv('../SCRIPTS/TDL/PHYCUV/DATASET/balanced_df.csv',delimiter=',')
 
 #df = pd.read_csv('../SCRIPTS/TDL/PHYCUV/DATASET/merged_df_personal.csv')
 
@@ -98,7 +98,7 @@ for layer in base_model.layers:
 x = Flatten()(base_model.output)
 x = Dense(256, activation='relu',kernel_regularizer=tf.keras.regularizers.l2(0.01))(x) #
 x = keras.layers.Dropout(0.5)(x)
-output = Dense(7, activation='sigmoid', kernel_regularizer=tf.keras.regularizers.l2(0.01))(x) 
+output = Dense(3, activation='sigmoid', kernel_regularizer=tf.keras.regularizers.l2(0.01))(x) 
 
 # Create the model
 model = Model(inputs=base_model.input, outputs=output)
@@ -113,7 +113,7 @@ model.compile(
 
 # Set up early stopping and model checkpoint callbacks
 early_stop = EarlyStopping(monitor='val_loss', patience=5, verbose=1, mode='min', restore_best_weights=True,start_from_epoch=6)
-checkpoint = ModelCheckpoint('../SCRIPTS/TDL/PHYCUV/MODELS/MobileNet/MobileNet_OVERSAMPLED_LR_L2_lr_01_batch_32.h5', monitor='val_loss', save_best_only=True, mode='min', verbose=1)
+checkpoint = ModelCheckpoint('../SCRIPTS/TDL/PHYCUV/MODELS/MobileNet/MobileNet_AUGMENTED_Lr_00001.h5', monitor='val_loss', save_best_only=True, mode='min', verbose=1)
 
 # Train the model for 100 epochs with batch size 32
 history = model.fit(
