@@ -40,18 +40,14 @@ import tensorflow as tf
 
 # Preprocessing the dataset
 
-df = pd.read_csv('../SCRIPTS/TDL/PHYCUV/DATASET/merged_COMPLETE_AUGMENTED.csv')
+df = pd.read_csv('../SCRIPTS/TDL/PHYCUV/DATASET/merged_COMPLETE_AUGMENTED_3_Labels.csv')
 
 #df = pd.read_csv('../SCRIPTS/TDL/PHYCUV/DATASET/merged_df_personal.csv')
 
 #%%
 # Eliminating all rows that contain no species identificated in the spectrograms
 # Find the sum of each row for the last 6 columns
-row_sums = df.iloc[:, -6:].sum(axis=1)
 
-# Keep only the rows with a non-zero sum in the last 6 columns
-df_no_ze = df[row_sums != 0]
-df_all_ze = df[row_sums == 0]
 
 #Function for preprocesing images
 def preprocess_images(paths, target_size=(224,224,3)):
@@ -76,7 +72,7 @@ y = np.array(df.drop(['NAME','Path'],axis=1))
 #Declaring size of mages
 SIZE = 224
 # Dividing Dataset in training and testing with 20 percent of whole dataset for testing
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25, random_state=42)
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42,stratify=y)
 
 # verify the distribution of labels in the train and test sets
 import numpy as np
