@@ -45,7 +45,7 @@ from tensorflow.keras.preprocessing import image
 
 # Preprocessing the dataset
 
-df = pd.read_csv('../SCRIPTS/TDL/PHYCUV/DATASET/merged_df_3_Labels.csv')
+df = pd.read_csv('../SCRIPTS/TDL/PHYCUV/DATASET/merged_COMPLETE_3_Labels.csv')
 
 #%%
 #Function for preprocesing images
@@ -66,7 +66,7 @@ y = np.array(df.drop(['NAME','Path'],axis=1))
 X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=760, test_size=0.15)
 #%%
 #Loading the model
-model = load_model('../SCRIPTS/TDL/PHYCUV/MODELS/MobileNet/MobileNet_AUGMENTED_Lr_00001.h5') #CHANGE PATH TO LOAD DESIRED MODEL
+model = load_model('../SCRIPTS/TDL/PHYCUV/MODELS/MBNET KFOLD TEST/MobileNet_REG_L2_Lr_00001_fold_0.h5') #CHANGE PATH TO LOAD DESIRED MODEL
 
 # Make predictions on the test data
 y_pred = model.predict(X)
@@ -101,4 +101,7 @@ print(f'Test precision: {test_precision}')
 print(f'Test recall: {test_recall}')
 print(f'Test ROC AUC: {test_roc_auc}')
 print(f'Test PR AUC: {test_pr_auc}')
+# %%
+#NEWWW
+
 # %%
