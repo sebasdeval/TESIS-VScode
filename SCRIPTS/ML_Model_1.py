@@ -471,11 +471,91 @@ from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
 from scikeras.wrappers import KerasClassifier, KerasRegressor
 from sklearn.model_selection import GridSearchCV
 from sklearn.metrics import f1_score
+import time
+
+# Define a function to create the Keras model
+def create_model(lr=0.0001):
+    start_time = time.time()
+    # Load the pre-trained MobileNet model
+    base_model = tf.keras.applications.DenseNet121(
+        include_top=False, weights='imagenet', input_shape=(224, 224, 3)
+    )
+
+    # Freeze the layers in the base model
+    for layer in base_model.layers:
+        layer.trainable = False
+
+    # Add a custom output layer for multi-label classification
+    x = Flatten()(base_model.output)
+    x = Dense(256, activation='relu')(x)
+    x = keras.layers.Dropout(0.5)(x)
+    output = Dense(7, activation='sigmoid')(x)
+
+    # Create the model
+    model = Model(inputs=base_model.input, outputs=output)
+
+    # Compile the model with Adam optimizer, binary crossentropy loss, and metrics AUC and binary accuracy
+    model.compile(
+        optimizer = tf.keras.optimizers.Adam(learning_rate=0.0001),
+        loss='binary_crossentropy',
+        metrics=[tf.keras.metrics.AUC(curve='ROC'), 'binary_accuracy']
+    )
+    end_time = time.time()
+    duration = end_time - start_time
+    return model
+
+# Wrap the Keras model inside a scikit-learn estimator
+estimator = KerasClassifier(model=create_model, lr=0.0001)
+
+
+# Define the hyperparameter grid to search over
+hyperparams = {
+    'lr':[0.001],
+    'batch_size':[16],
+    'epochs': [2]
+}
+
+# Set up early stopping and model checkpoint callbacks
+early_stop = EarlyStopping(monitor='val_loss', patience=5, verbose=1, mode='min', restore_best_weights=True)
+checkpoint = ModelCheckpoint('../SCRIPTS/TDL/PHYCUV/MODELS/DenseNet121/New_model_V1.h5', monitor='val_loss', save_best_only=True, mode='min', verbose=1)
+
+# Set up the GridSearchCV object
+grid = GridSearchCV(
+    estimator=estimator,
+    param_grid=hyperparams,
+    scoring='f1_micro',
+    n_jobs=-1,
+    cv=2,
+    #callbacks=[early_stop, checkpoint]
+)
+
+# Train the model using GridSearchCV
+start_time = time.time()
+history = grid.fit(X_train, y_train, validation_data=(X_test, y_test), callbacks=[early_stop, checkpoint])
+end_time = time.time()
+duration = end_time - start_time
+print(f"Training the model took {duration:.2f} seconds")
+
+# Print the best hyperparameters and their scores
+print(f'Best hyperparameters: {grid.best_params_}')
+print(f'Best score: {grid.best_score_}')
+
+
+# %%
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras.layers import Dense, Flatten
+from tensorflow.keras.models import Model
+from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
+from scikeras.wrappers import KerasClassifier, KerasRegressor
+from sklearn.model_selection import GridSearchCV
+from sklearn.metrics import f1_score
 
 # Define a function to create the Keras model
 def create_model(lr=0.001):
-    # Load the pre-trained MobileNet model
-    base_model = tf.keras.applications.MobileNet(
+    # Load the pre-trained ResNet50 model
+    base_model = tf.keras.applications.ResNet50(
         include_top=False, weights='imagenet', input_shape=(224, 224, 3)
     )
 
@@ -508,13 +588,13 @@ estimator = KerasClassifier(model=create_model, lr=0.0001)
 # Define the hyperparameter grid to search over
 hyperparams = {
     'lr':[0.0001],
-    'batch_size':[16,32],
-    'epochs': [10]
+    'batch_size':[32],
+    'epochs': [1]
 }
 
 # Set up early stopping and model checkpoint callbacks
 early_stop = EarlyStopping(monitor='val_loss', patience=5, verbose=1, mode='min', restore_best_weights=True)
-checkpoint = ModelCheckpoint('../SCRIPTS/TDL/PHYCUV/MODELS/MobileNet/model_V3.h5', monitor='val_loss', save_best_only=True, mode='min', verbose=1)
+checkpoint = ModelCheckpoint('../SCRIPTS/TDL/PHYCUV/MODELS/MobileNet/model3_V5.h5', monitor='val_loss', save_best_only=True, mode='min', verbose=1)
 
 # Set up the GridSearchCV object
 grid = GridSearchCV(
@@ -531,6 +611,4 @@ history = grid.fit(X_train, y_train, validation_data=(X_test, y_test), callbacks
 # Print the best hyperparameters and their scores
 print(f'Best hyperparameters: {grid.best_params_}')
 print(f'Best score: {grid.best_score_}')
-
-
 # %%
