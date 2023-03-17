@@ -40,7 +40,7 @@ import tensorflow as tf
 
 # Preprocessing the dataset
 
-df = pd.read_csv('../SCRIPTS/TDL/PHYCUV/DATASET/merged_df.csv')
+df = pd.read_csv('../SCRIPTS/TDL/PHYCUV/DATASET/merged_COMPLETE_AUGMENTED.csv')
 
 #df = pd.read_csv('../SCRIPTS/TDL/PHYCUV/DATASET/merged_df_personal.csv')
 
@@ -76,9 +76,14 @@ y = np.array(df.drop(['NAME','Path'],axis=1))
 #Declaring size of mages
 SIZE = 224
 # Dividing Dataset in training and testing with 20 percent of whole dataset for testing
-X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=760, test_size=0.2)
-#X_tensor_train, X_tensor_test, y_tensor_train, y_tensor_test = train_test_split(X_tensor, y_tensor, random_state=20, test_size=0.2)
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25, random_state=42)
 
+# verify the distribution of labels in the train and test sets
+import numpy as np
+train_label_counts = np.sum(y_train, axis=0)
+test_label_counts = np.sum(y_test, axis=0)
+print(f"Train label counts: {train_label_counts}")
+print(f"Test label counts: {test_label_counts}")
 #%%
 from tensorflow.keras.layers import Dense, Flatten
 from tensorflow.keras.models import Model
@@ -102,6 +107,8 @@ for layer in base_model.layers:
 x = Flatten()(base_model.output)
 x = Dense(256, activation='relu', kernel_regularizer=tf.keras.regularizers.l2(0.01))(x) #)(x)
 x = keras.layers.Dropout(0.5)(x)
+x = Dense(128, activation='relu',kernel_regularizer=tf.keras.regularizers.l2(0.01))(x) #
+x = keras.layers.Dropout(0.5)(x)
 output = Dense(7, activation='sigmoid', kernel_regularizer=tf.keras.regularizers.l2(0.01))(x) #)(x)
 
 # Create the model
@@ -109,7 +116,7 @@ model = Model(inputs=base_model.input, outputs=output)
 
 # Compile the model with Adam optimizer, binary crossentropy loss, and metrics AUC and binary accuracy
 model.compile(
-    optimizer=Adam(learning_rate=0.01),
+    optimizer=Adam(learning_rate=0.00001),
     loss='binary_crossentropy',
     #metrics=[tf.keras.metrics.AUC(curve='ROC'), 'binary_accuracy']
     metrics=[Precision(), Recall(), AUC(curve='ROC'), AUC(curve='PR', name='PR AUC'), 'binary_accuracy']
@@ -117,7 +124,7 @@ model.compile(
 
 # Set up early stopping and model checkpoint callbacks
 early_stop = EarlyStopping(monitor='val_loss', patience=5, verbose=1, mode='min', restore_best_weights=True)
-checkpoint = ModelCheckpoint('../SCRIPTS/TDL/PHYCUV/MODELS/DenseNet121/DenseNet_Reg_l2_lr01.h5', monitor='val_loss', save_best_only=True, mode='min', verbose=1)
+checkpoint = ModelCheckpoint('../SCRIPTS/TDL/PHYCUV/MODELS/AUGMENTED/DenseNet121/DenseNet121_Reg_L2_2LYR_Lr_00001.h5', monitor='val_loss', save_best_only=True, mode='min', verbose=1)
 
 # Train the model for 100 epochs with batch size 32
 history = model.fit(

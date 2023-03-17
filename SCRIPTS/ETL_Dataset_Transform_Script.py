@@ -482,6 +482,7 @@ def save_merged_df(merged_df, save_path):
     """
     file_path = os.path.join(save_path, "merged_df.csv")
     merged_df.to_csv(file_path, index=False)
+    
                 
                   
 print("_____________DONE LOADING THE FUNCTIONS_____________")
@@ -537,6 +538,29 @@ save_path = "../SCRIPTS/TDL/PHYCUV/DATASET/"
 #save_merged_df(label_df, save_path)
 #save_merged_df(spectrogram_df, save_path)
 save_merged_df(merged_df, save_path)
+
+
+# %%
+
+merged_df_TEST = pd.read_csv("../SCRIPTS/TDL/PHYCUV/DATASET/merged_COMPLETE_AUGMENTED.csv")
+
+# Drop the "none" column
+merged_df_TEST.drop(columns=['none'], inplace=True)
+
+# Merge PHYCUV_M and PHYCUV_F columns into a new column called PHYCUV
+merged_df_TEST['PHYCUV'] = (merged_df_TEST['PHYCUV_M'].fillna(0) + merged_df_TEST['PHYCUV_F'].fillna(0)).clip(0,1)
+
+# Merge BOAALB_M and BOAALB_F columns into a new column called BOAALB
+merged_df_TEST['BOAALB'] = (merged_df_TEST['BOAALB_M'].fillna(0) + merged_df_TEST['BOAALB_F'].fillna(0)).clip(0,1)
+
+# Merge BOALUN_M and BOALUN_F columns into a new column called BOALUN
+merged_df_TEST['BOALUN'] = (merged_df_TEST['BOALUN_M'].fillna(0) + merged_df_TEST['BOALUN_F'].fillna(0)).clip(0,1)
+
+# Drop the original male and female columns
+merged_df_TEST.drop(columns=['PHYCUV_M','BOAALB_M','BOALUN_M','PHYCUV_F','BOAALB_F','BOALUN_F'], inplace=True)
+merged_df_TEST.drop(columns=['PHYCUV'], inplace=True)
+# Save the modified dataframe to a CSV file
+merged_df_TEST.to_csv('../SCRIPTS/TDL/PHYCUV/DATASET/merged_COMPLETE_AUGMENTED_2_Labels.csv', index=False)
 
 
 # %%
