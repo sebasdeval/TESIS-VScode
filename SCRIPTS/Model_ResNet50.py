@@ -139,7 +139,7 @@ history = model.fit(
 
 # Evaluate the model on the test set using F1 score
 y_pred = model.predict(X_test)
-test_f1_score = f1_score(y_test, y_pred > 0.5, average='micro')
+test_f1_score = f1_score(y_test, y_pred > 0.5, average=None)
 test_precision = Precision()(y_test, y_pred).numpy()
 test_recall = Recall()(y_test, y_pred).numpy()
 test_roc_auc = AUC(curve='ROC')(y_test, y_pred).numpy()
