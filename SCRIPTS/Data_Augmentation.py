@@ -165,7 +165,7 @@ import matplotlib.pyplot as plt
 import os
 
 # Load the dataset
-df = pd.read_csv('../SCRIPTS/TDL/PHYCUV/DATASET/merged_COMPLETE.csv')
+df = pd.read_csv('../SCRIPTS/TDL/PHYCUV/DATASET/merged_COMPLETE_3_Labels.csv')
 
 # Get the count of each label in the dataset
 label_counts = df.drop(['NAME', 'Path'], axis=1).sum()
@@ -183,7 +183,7 @@ image_paths = df['Path'].tolist()
 augmented_data = pd.DataFrame(columns=df.columns)
 
 # Initialize the directory for the augmented images
-aug_dir = '../SCRIPTS/TDL/PHYCUV/AUG/'
+aug_dir = '../SCRIPTS/TDL/PHYCUV/AUG_TIME_STRETCHING/'
 if not os.path.exists(aug_dir):
     os.makedirs(aug_dir)
 
