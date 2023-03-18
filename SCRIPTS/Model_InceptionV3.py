@@ -41,7 +41,7 @@ import tensorflow as tf
 
 # Preprocessing the dataset
 
-df = pd.read_csv('../SCRIPTS/TDL/PHYCUV/DATASET/merged_COMPLETE_AUGMENTED.csv')
+df = pd.read_csv('../SCRIPTS/TDL/PHYCUV/DATASET/merged_COMPLETE_3_Labels.csv',delimiter=',')
 
 #df = pd.read_csv('../SCRIPTS/TDL/PHYCUV/DATASET/merged_df_personal.csv')
 
@@ -112,7 +112,7 @@ x = Dense(256, activation='relu',kernel_regularizer=tf.keras.regularizers.l2(0.0
 x = keras.layers.Dropout(0.5)(x)
 x = Dense(128, activation='relu',kernel_regularizer=tf.keras.regularizers.l2(0.01))(x) #
 x = keras.layers.Dropout(0.5)(x)
-output = Dense(7, activation='sigmoid')(x) #,kernel_regularizer=tf.keras.regularizers.l2(0.01))(x) #)(x)
+output = Dense(3, activation='sigmoid')(x) #,kernel_regularizer=tf.keras.regularizers.l2(0.01))(x) #)(x)
 
 # Create the model
 model = Model(inputs=base_model.input, outputs=output)
@@ -153,3 +153,77 @@ print(f'Test PR AUC: {test_pr_auc}')
 
 
 # %%
+#K-FOLD VERSION
+
+# import necessary libraries
+from sklearn.model_selection import KFold
+from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
+from tensorflow.keras.metrics import Precision, Recall, AUC
+from tensorflow.keras.optimizers import Adam
+
+# Define the number of folds
+n_splits = 5
+
+# Initialize the KFold object
+kf = KFold(n_splits=n_splits)
+
+# Iterate over the folds
+for fold, (train_index, test_index) in enumerate(kf.split(X)):
+    
+    # Split the data into train and test sets for this fold
+    X_train, X_test = X[train_index], X[test_index]
+    y_train, y_test = y[train_index], y[test_index]
+    
+    # Load the pre-trained MobileNet model
+    base_model = InceptionV3(
+        include_top=False, weights='imagenet', input_shape=(224, 224, 3)
+    )
+
+    # Freeze the layers in the base model
+    for layer in base_model.layers:
+        layer.trainable = False
+
+    # Add a custom output layer for multilabel classification
+    x = Flatten()(base_model.output)
+    x = Dense(256, activation='relu',kernel_regularizer=tf.keras.regularizers.l2(0.01))(x) #
+    x = keras.layers.Dropout(0.5)(x)
+    #x = Dense(128, activation='relu',kernel_regularizer=tf.keras.regularizers.l2(0.01))(x) #
+    #x = keras.layers.Dropout(0.5)(x)
+    output = Dense(3, activation='sigmoid', kernel_regularizer=tf.keras.regularizers.l2(0.01))(x) 
+
+    # Create the model
+    model = Model(inputs=base_model.input, outputs=output)
+
+    # Compile the model with Adam optimizer, binary crossentropy loss, and metrics AUC and binary accuracy
+    model.compile(
+        optimizer=Adam(learning_rate=0.00001),
+        loss='binary_crossentropy',
+        metrics=[Precision(), Recall(), AUC(curve='ROC'), AUC(curve='PR', name='PR AUC'), 'binary_accuracy']
+    )
+
+    # Set up early stopping and model checkpoint callbacks
+    early_stop = EarlyStopping(monitor='val_loss', patience=5, verbose=1, mode='min', restore_best_weights=True,start_from_epoch=6)
+    checkpoint = ModelCheckpoint(f'InceptionV3_REG_L2_1LYR_Lr_00001_fold_{fold}.h5', monitor='val_loss', save_best_only=True, mode='min', verbose=1)
+
+    # Train the model for 100 epochs with batch size 32
+    history = model.fit(
+        X_train, y_train,
+        batch_size=32,
+        epochs=1000,
+        validation_data=(X_test, y_test),
+        callbacks=[early_stop, checkpoint],
+        verbose=1
+    )
+
+# Evaluate the model on the test set using F1 score
+y_pred = model.predict(X_test)
+test_f1_score = f1_score(y_test, y_pred > 0.5, average=None)
+test_precision = Precision()(y_test, y_pred).numpy()
+test_recall = Recall()(y_test, y_pred).numpy()
+test_roc_auc = AUC(curve='ROC')(y_test, y_pred).numpy()
+test_pr_auc = average_precision_score(y_test, y_pred, average='micro')
+print(f'Test F1 score: {test_f1_score}')
+print(f'Test precision: {test_precision}')
+print(f'Test recall: {test_recall}')
+print(f'Test ROC AUC: {test_roc_auc}')
+print(f'Test PR AUC: {test_pr_auc}')

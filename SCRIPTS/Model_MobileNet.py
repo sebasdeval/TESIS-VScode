@@ -40,7 +40,7 @@ import tensorflow as tf
 #%%
 # Preprocessing the dataset
 
-df = pd.read_csv('../SCRIPTS/TDL/PHYCUV/DATASET/merged_COMPLETE_AUGMENTED.csv',delimiter=',')
+df = pd.read_csv('../SCRIPTS/TDL/PHYCUV/DATASET/merged_COMPLETE_3_Labels.csv',delimiter=',')
 
 #df = pd.read_csv('../SCRIPTS/TDL/PHYCUV/DATASET/merged_df_personal.csv')
 
@@ -70,7 +70,7 @@ SIZE = 224
 # Dividing Dataset in training and testing with 20 percent of whole dataset for testing
 #X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=760, test_size=0.15)
 #X_tensor_train, X_tensor_test, y_tensor_train, y_tensor_test = train_test_split(X_tensor, y_tensor, random_state=20, test_size=0.2)
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25, random_state=42)
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.35, random_state=42,stratify=y)
 #%%
 # verify the distribution of labels in the train and test sets
 import numpy as np
@@ -101,9 +101,9 @@ for layer in base_model.layers:
 x = Flatten()(base_model.output)
 x = Dense(256, activation='relu',kernel_regularizer=tf.keras.regularizers.l2(0.01))(x) 
 x = keras.layers.Dropout(0.5)(x)
-x = Dense(128, activation='relu',kernel_regularizer=tf.keras.regularizers.l2(0.01))(x) #
-x = keras.layers.Dropout(0.5)(x)
-output = Dense(7, activation='sigmoid', kernel_regularizer=tf.keras.regularizers.l2(0.01))(x) 
+# x = Dense(128, activation='relu')(x)#kernel_regularizer=tf.keras.regularizers.l2(0.01))(x) #
+# x = keras.layers.Dropout(0.5)(x)
+output = Dense(3, activation='sigmoid', kernel_regularizer=tf.keras.regularizers.l2(0.01))(x) 
 
 # Create the model
 model = Model(inputs=base_model.input, outputs=output)
@@ -118,7 +118,7 @@ model.compile(
 
 # Set up early stopping and model checkpoint callbacks
 early_stop = EarlyStopping(monitor='val_loss', patience=5, verbose=1, mode='min', restore_best_weights=True,start_from_epoch=6)
-checkpoint = ModelCheckpoint('../SCRIPTS/TDL/PHYCUV/MODELS/AUGMENTED/MobileNet/MobileNet_Reg_L2_2LYR_Lr_00001.h5', monitor='val_loss', save_best_only=True, mode='min', verbose=1)
+checkpoint = ModelCheckpoint('../SCRIPTS/TDL/PHYCUV/NEW_MODELS/Not_Augmented/One_Fully_Connected_Layers/Regularization L2/MobileNet/MobileNet_1LYR_RegL2_Lr_00001.h5', monitor='val_loss', save_best_only=True, mode='min', verbose=1)
 
 # Train the model for 100 epochs with batch size 32
 history = model.fit(
@@ -129,7 +129,7 @@ history = model.fit(
     callbacks=[early_stop, checkpoint],
     verbose = 1
 )
-#%%
+
 # Evaluate the model on the test set using F1 score
 y_pred = model.predict(X_test)
 test_f1_score = f1_score(y_test, y_pred > 0.5, average=None)
@@ -178,8 +178,8 @@ for fold, (train_index, test_index) in enumerate(kf.split(X)):
     x = Flatten()(base_model.output)
     x = Dense(256, activation='relu',kernel_regularizer=tf.keras.regularizers.l2(0.01))(x) #
     x = keras.layers.Dropout(0.5)(x)
-    x = Dense(128, activation='relu',kernel_regularizer=tf.keras.regularizers.l2(0.01))(x) #
-    x = keras.layers.Dropout(0.5)(x)
+    #x = Dense(128, activation='relu',kernel_regularizer=tf.keras.regularizers.l2(0.01))(x) #
+    #x = keras.layers.Dropout(0.5)(x)
     output = Dense(3, activation='sigmoid', kernel_regularizer=tf.keras.regularizers.l2(0.01))(x) 
 
     # Create the model
@@ -194,7 +194,7 @@ for fold, (train_index, test_index) in enumerate(kf.split(X)):
 
     # Set up early stopping and model checkpoint callbacks
     early_stop = EarlyStopping(monitor='val_loss', patience=5, verbose=1, mode='min', restore_best_weights=True,start_from_epoch=6)
-    checkpoint = ModelCheckpoint(f'MobileNet_REG_L2_Lr_00001_fold_{fold}.h5', monitor='val_loss', save_best_only=True, mode='min', verbose=1)
+    checkpoint = ModelCheckpoint(f'MobileNet_REG_L2_1LYR_Lr_00001_fold_{fold}.h5', monitor='val_loss', save_best_only=True, mode='min', verbose=1)
 
     # Train the model for 100 epochs with batch size 32
     history = model.fit(
