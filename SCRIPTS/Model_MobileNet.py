@@ -79,6 +79,9 @@ test_label_counts = np.sum(y_test, axis=0)
 print(f"Train label counts: {train_label_counts}")
 print(f"Test label counts: {test_label_counts}")
 #%%
+
+
+# 1 LAYER
 from tensorflow.keras.layers import Dense, Flatten
 from tensorflow.keras.models import Model
 from tensorflow.keras.applications.mobilenet import MobileNet
@@ -144,8 +147,92 @@ print(f'Test ROC AUC: {test_roc_auc}')
 print(f'Test PR AUC: {test_pr_auc}')
 #%%
 
-#K-FOLD VERSION
+# 2 LAYER
+from tensorflow.keras.layers import Dense, Flatten
+from tensorflow.keras.models import Model
+from tensorflow.keras.applications.mobilenet import MobileNet
+from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
+from sklearn.metrics import f1_score
+from tensorflow.keras.metrics import Precision, Recall, AUC
+from sklearn.metrics import average_precision_score
 
+# Load the pre-trained MobileNet model
+base_model = MobileNet(
+    include_top=False, weights='imagenet', input_shape=(224, 224, 3)
+)
+
+# Freeze the layers in the base model
+for layer in base_model.layers:
+    layer.trainable = False
+
+# Add a custom output layer for multilabel classification
+x = Flatten()(base_model.output)
+x = Dense(256, activation='relu',kernel_regularizer=tf.keras.regularizers.l2(0.01))(x) 
+x = keras.layers.Dropout(0.5)(x)
+x = Dense(128, activation='relu',kernel_regularizer=tf.keras.regularizers.l2(0.01))(x) #
+x = keras.layers.Dropout(0.5)(x)
+output = Dense(3, activation='sigmoid', kernel_regularizer=tf.keras.regularizers.l2(0.01))(x) 
+
+# Create the model
+model = Model(inputs=base_model.input, outputs=output)
+
+# Compile the model with Adam optimizer, binary crossentropy loss, and metrics AUC and binary accuracy
+model.compile(
+    optimizer=Adam(learning_rate=0.00001),
+    loss='binary_crossentropy',
+    #metrics=[tf.keras.metrics.AUC(curve='ROC'), 'binary_accuracy']
+    metrics=[Precision(), Recall(), AUC(curve='ROC'), AUC(curve='PR', name='PR AUC'), 'binary_accuracy']
+)
+
+# Set up early stopping and model checkpoint callbacks
+early_stop = EarlyStopping(monitor='val_loss', patience=5, verbose=1, mode='min', restore_best_weights=True,start_from_epoch=6)
+checkpoint = ModelCheckpoint('../SCRIPTS/TDL/PHYCUV/NEW_MODELS/Not_Augmented/Two_Fully_Connected_Layers/Regularization L2/MobileNet/MobileNet_2LYR_RegL2_Lr_00001.h5', monitor='val_loss', save_best_only=True, mode='min', verbose=1)
+
+# Train the model for 100 epochs with batch size 32
+history = model.fit(
+    X_train, y_train,
+    batch_size=32,
+    epochs=1000,
+    validation_data=(X_test, y_test),
+    callbacks=[early_stop, checkpoint],
+    verbose = 1
+)
+
+# Evaluate the model on the test set using F1 score
+y_pred = model.predict(X_test)
+test_f1_score = f1_score(y_test, y_pred > 0.5, average=None)
+test_precision = Precision()(y_test, y_pred).numpy()
+test_recall = Recall()(y_test, y_pred).numpy()
+test_roc_auc = AUC(curve='ROC')(y_test, y_pred).numpy()
+test_pr_auc = average_precision_score(y_test, y_pred, average='micro')
+print(f'Test F1 score: {test_f1_score}')
+print(f'Test precision: {test_precision}')
+print(f'Test recall: {test_recall}')
+print(f'Test ROC AUC: {test_roc_auc}')
+print(f'Test PR AUC: {test_pr_auc}')
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#%%
+#K-FOLD VERSION
+#1LAYER
 # import necessary libraries
 from sklearn.model_selection import KFold
 from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
@@ -220,7 +307,13 @@ print(f'Test ROC AUC: {test_roc_auc}')
 print(f'Test PR AUC: {test_pr_auc}')
 
 # %%
-import tensorflow_addons as tfa
+#K-FOLD VERSION
+#2LAYER
+# import necessary libraries
+from sklearn.model_selection import KFold
+from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
+from tensorflow.keras.metrics import Precision, Recall, AUC
+from tensorflow.keras.optimizers import Adam
 
 # Define the number of folds
 n_splits = 5
@@ -248,22 +341,23 @@ for fold, (train_index, test_index) in enumerate(kf.split(X)):
     x = Flatten()(base_model.output)
     x = Dense(256, activation='relu',kernel_regularizer=tf.keras.regularizers.l2(0.01))(x) #
     x = keras.layers.Dropout(0.5)(x)
+    x = Dense(128, activation='relu',kernel_regularizer=tf.keras.regularizers.l2(0.01))(x) #
+    x = keras.layers.Dropout(0.5)(x)
     output = Dense(3, activation='sigmoid', kernel_regularizer=tf.keras.regularizers.l2(0.01))(x) 
 
     # Create the model
     model = Model(inputs=base_model.input, outputs=output)
 
-    # Compile the model with Adam optimizer, binary crossentropy loss, and metrics F1 score for each label with average=None for validation
-    metrics = [tfa.metrics.F1Score(num_classes=3, average=None, name='f1score_label_{}'.format(i)) for i in range(3)]
+    # Compile the model with Adam optimizer, binary crossentropy loss, and metrics AUC and binary accuracy
     model.compile(
         optimizer=Adam(learning_rate=0.00001),
         loss='binary_crossentropy',
-        metrics=metrics
+        metrics=[Precision(), Recall(), AUC(curve='ROC'), AUC(curve='PR', name='PR AUC'), 'binary_accuracy']
     )
 
     # Set up early stopping and model checkpoint callbacks
     early_stop = EarlyStopping(monitor='val_loss', patience=5, verbose=1, mode='min', restore_best_weights=True,start_from_epoch=6)
-    checkpoint = ModelCheckpoint(f'MobileNet_REG_L2_Lr_00001_fold_{fold}.h5', monitor='val_loss', save_best_only=True, mode='min', verbose=1)
+    checkpoint = ModelCheckpoint(f'MobileNet_REG_L2_2LYR_Lr_00001_fold_{fold}.h5', monitor='val_loss', save_best_only=True, mode='min', verbose=1)
 
     # Train the model for 100 epochs with batch size 32
     history = model.fit(
@@ -274,4 +368,18 @@ for fold, (train_index, test_index) in enumerate(kf.split(X)):
         callbacks=[early_stop, checkpoint],
         verbose=1
     )
+
+# Evaluate the model on the test set using F1 score
+y_pred = model.predict(X_test)
+test_f1_score = f1_score(y_test, y_pred > 0.5, average=None)
+test_precision = Precision()(y_test, y_pred).numpy()
+test_recall = Recall()(y_test, y_pred).numpy()
+test_roc_auc = AUC(curve='ROC')(y_test, y_pred).numpy()
+test_pr_auc = average_precision_score(y_test, y_pred, average='micro')
+print(f'Test F1 score: {test_f1_score}')
+print(f'Test precision: {test_precision}')
+print(f'Test recall: {test_recall}')
+print(f'Test ROC AUC: {test_roc_auc}')
+print(f'Test PR AUC: {test_pr_auc}')
+
 # %%
